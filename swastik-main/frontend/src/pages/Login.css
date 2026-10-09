@@ -1,0 +1,299 @@
+/* Swastik Hospital Login – reference design: logo, white card, teal accents */
+.swastik-login-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 32px 24px 24px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.swastik-login-logo-wrap {
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.swastik-login-logo {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
+}
+
+.swastik-login-card {
+  width: 100%;
+  max-width: 460px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+}
+
+/* Top bar: dark teal strip – Login tab + Select Locale (right) */
+.swastik-login-card-header {
+  background: #1a5f5c;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.swastik-login-tab {
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.swastik-login-tab.active {
+  background: #1a5f5c;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.swastik-login-card-header .swastik-login-locale-label {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.9rem;
+}
+
+.swastik-login-locale {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swastik-login-locale-label {
+  font-size: 0.9rem;
+}
+
+.swastik-login-locale-select {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a5f5c;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 6px 28px 6px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a5f5c' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.swastik-login-locale-select option {
+  background: white;
+  color: #333;
+}
+
+/* Demo credentials expandable */
+.swastik-login-demo {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.swastik-login-demo-toggle {
+  background: none;
+  border: none;
+  color: #1a5f5c;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.swastik-login-demo-toggle:hover {
+  color: #144946;
+}
+
+.swastik-login-demo-list {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #555;
+  text-align: left;
+  line-height: 1.8;
+}
+
+.swastik-login-demo-list code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.swastik-login-card-body {
+  padding: 32px 28px 36px;
+}
+
+.swastik-login-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+  margin: 0 0 28px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.swastik-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.swastik-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swastik-login-field label {
+  font-weight: 600;
+  color: #222;
+  font-size: 0.95rem;
+}
+
+.swastik-login-field input {
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.swastik-login-field input::placeholder {
+  color: #999;
+}
+
+.swastik-login-field input:focus {
+  outline: none;
+  border-color: #1a5f5c;
+}
+
+.swastik-login-error {
+  color: #c62828;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.swastik-login-btn {
+  background: #1a5f5c;
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.swastik-login-btn:hover {
+  background: #144946;
+  box-shadow: 0 4px 12px rgba(26, 95, 92, 0.3);
+}
+
+.swastik-login-footer {
+  margin-top: auto;
+  padding-top: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.swastik-login-home-link {
+  color: #1a5f5c;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.swastik-login-home-link:hover {
+  text-decoration: underline;
+}
+
+.swastik-login-orelse-logo {
+  height: 70px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.swastik-login-powered {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Red-tint logo to match brand (swastik + brain) */
+.swastik-login-logo-wrap.swastik-login-logo-red .swastik-login-logo {
+  filter: brightness(0.95) saturate(1.3) hue-rotate(-15deg) sepia(0.15);
+}
+
+/* OR Divider */
+.swastik-login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 12px 0;
+  width: 100%;
+}
+
+.swastik-login-divider::before,
+.swastik-login-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.swastik-login-divider::before {
+  margin-right: .75em;
+}
+
+.swastik-login-divider::after {
+  margin-left: .75em;
+}
+
+.swastik-login-divider span {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Google Login Button */
+.google-login-btn {
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  color: #3c4043;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.google-login-btn:hover {
+  background-color: #f7f9fa;
+  border-color: #d2d4d7;
+  box-shadow: 0 1px 3px 0 rgba(60,64,67,0.15), 0 1px 2px 0 rgba(60,64,67,0.1);
+}

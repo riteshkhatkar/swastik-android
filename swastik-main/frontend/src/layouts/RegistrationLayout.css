@@ -1,0 +1,12 @@
+/* Registration layout: full-height column so footer stays at bottom */
+.registration-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.registration-main {
+  flex: 1;
+  padding: 20px;
+  background: #f8f9fa;
+}

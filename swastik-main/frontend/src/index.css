@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    background-color: #F1F5F9;
+    color: #475569;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    color: #0F172A;
+    font-weight: 600;
+  }
+  
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  }
+}
+
+@layer components {
+  /* Layout Canvas */
+  .app-canvas {
+    @apply min-h-screen bg-[#F1F5F9] text-slate-600 font-sans;
+  }
+  
+  /* Navigation Sidebar */
+  .app-sidebar {
+    @apply flex flex-col shrink-0 z-10 w-64 border-r bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] shadow-[4px_0_24px_-8px_rgba(15,23,42,0.06)];
+    border-right-color: rgba(226, 232, 240, 0.9);
+  }
+  
+  /* Workspace Header */
+  .app-header {
+    @apply flex items-center px-4 sm:px-8 shrink-0 z-10 h-16 border-b backdrop-blur-sm shadow-[0_1px_0_rgba(15,23,42,0.04)];
+    border-bottom-color: rgba(226, 232, 240, 0.9);
+    background-color: rgba(248, 250, 252, 0.97);
+  }
+  
+  /* Panels */
+  .glass-panel {
+    @apply p-6 sm:p-8 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 shadow-md relative overflow-hidden;
+  }
+  
+  .panel-elevated {
+    @apply bg-white border border-slate-200 shadow-sm rounded-xl;
+  }
+  
+  .panel-ai {
+    @apply border shadow-md rounded-2xl relative overflow-hidden;
+    border-color: rgba(221, 214, 254, 0.8);
+    background: linear-gradient(180deg, rgba(245, 243, 255, 0.65) 0%, #FFFFFF 50%, #F8FAFC 100%);
+  }
+  
+  /* Primary Metric Card */
+  .metric-card {
+    @apply p-6 h-full rounded-xl border border-slate-200 shadow-sm transition-all duration-300;
+    background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+  }
+  
+  .metric-card:hover {
+    @apply shadow-md border-slate-300;
+  }
+  
+  /* Navigation Items */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-sm font-normal;
+  }
+  
+  .nav-item-active {
+    @apply text-indigo-700 bg-indigo-50 font-medium border-r-4 border-indigo-500 shadow-[inset_-3px_0_0_rgba(99,102,241,0.15)] !important;
+  }
+  
+  /* Typography Helper Labels */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+  }
+  
+  .micro-label {
+    @apply text-[10px] font-bold uppercase tracking-widest text-slate-500;
+  }
+}

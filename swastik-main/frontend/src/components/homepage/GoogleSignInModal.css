@@ -1,0 +1,228 @@
+.google-signin-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* Ensure overlay displays on top of fixed navbar */
+  backdrop-filter: blur(2px);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.google-signin-card {
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 450px;
+  padding: 3rem 2.5rem;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.google-signin-card__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.google-signin-card__close:hover {
+  background-color: #f1f3f4;
+  color: #202124;
+}
+
+.google-signin-card__logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.google-signin-card__title {
+  color: #202124;
+  font-size: 1.5rem;
+  font-weight: 400;
+  text-align: center;
+  margin: 0 0 0.5rem 0;
+  font-family: "Google Sans", "Roboto", sans-serif;
+}
+
+.google-signin-card__subtitle {
+  color: #202124;
+  font-size: 1rem;
+  font-weight: 400;
+  text-align: center;
+  margin: 0 0 2rem 0;
+}
+
+.google-signin-card__role {
+  font-weight: 600;
+  color: #0d9488;
+}
+
+.google-signin-card__form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Material Design Outlined Text Input with Floating Label */
+.google-signin-card__input-group {
+  position: relative;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.google-signin-card__input {
+  width: 100%;
+  padding: 18px 14px 10px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: #202124;
+  background: transparent;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.google-signin-card__input:focus {
+  border-color: #1a73e8;
+  border-width: 2px;
+  padding: 17px 13px 9px; /* adjust padding slightly for 2px border layout */
+}
+
+.google-signin-card__label {
+  position: absolute;
+  left: 14px;
+  top: 15px;
+  color: #5f6368;
+  font-size: 1rem;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: transparent;
+  padding: 0 4px;
+}
+
+/* Floating behavior when typing or focused */
+.google-signin-card__input:focus ~ .google-signin-card__label,
+.google-signin-card__input:not(:placeholder-shown) ~ .google-signin-card__label {
+  top: -6px;
+  left: 10px;
+  font-size: 0.75rem;
+  color: #1a73e8;
+  background-color: #ffffff;
+  font-weight: 500;
+}
+
+.google-signin-card__input:not(:focus):not(:placeholder-shown) ~ .google-signin-card__label {
+  color: #5f6368;
+}
+
+.google-signin-card__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.google-signin-card__create-btn {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 0.25rem;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: background-color 0.2s;
+}
+
+.google-signin-card__create-btn:hover {
+  background-color: rgba(26, 115, 232, 0.04);
+}
+
+.google-signin-card__next-btn {
+  background-color: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.5rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  min-width: 80px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.google-signin-card__next-btn:hover {
+  background-color: #1557b0;
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+}
+
+.google-signin-card__next-btn:disabled {
+  background-color: #dadce0;
+  color: #9aa0a6;
+  cursor: not-allowed;
+}
+
+/* Spinner Styles */
+.google-signin-card__spinner {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  animation: google-spin 0.8s linear infinite;
+}
+
+@keyframes google-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .google-signin-overlay {
+    background-color: #ffffff; /* White background on mobile for native full screen look */
+    align-items: flex-start;
+  }
+  
+  .google-signin-card {
+    border: none;
+    box-shadow: none;
+    padding: 4rem 1.5rem;
+    max-width: 100%;
+    height: 100vh;
+  }
+  
+  .google-signin-card__close {
+    top: 1.5rem;
+    right: 1.5rem;
+  }
+}

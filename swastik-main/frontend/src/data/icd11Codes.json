@@ -1,0 +1,252 @@
+[
+    {
+        "code": "6A00",
+        "title": "Neurodevelopmental disorders, unspecified",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A01",
+        "title": "Disorder of intellectual development",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A02.0",
+        "title": "Developmental speech disorder",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A02.1",
+        "title": "Developmental language disorder",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A03",
+        "title": "Autism spectrum disorder",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A04",
+        "title": "Attention deficit hyperactivity disorder",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A05",
+        "title": "Developmental coordination disorder",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A06",
+        "title": "Tic disorders",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A0Y",
+        "title": "Other specified neurodevelopmental disorders",
+        "category": "Neurodevelopmental disorders"
+    },
+    {
+        "code": "6A20",
+        "title": "Schizophrenia",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A21",
+        "title": "Schizoaffective disorder",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A22",
+        "title": "Schizotypal disorder",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A23",
+        "title": "Acute and transient psychotic disorder",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A24",
+        "title": "Delusional disorder",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A25",
+        "title": "Psychotic disorder due to another medical condition",
+        "category": "Schizophrenia or other primary psychotic disorders"
+    },
+    {
+        "code": "6A40",
+        "title": "Catatonia",
+        "category": "Catatonia"
+    },
+    {
+        "code": "6A60",
+        "title": "Bipolar type I disorder",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A61",
+        "title": "Bipolar type II disorder",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A62",
+        "title": "Cyclothymic disorder",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A70",
+        "title": "Depressive episode",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A71",
+        "title": "Major depressive disorder, single episode",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A72",
+        "title": "Major depressive disorder, recurrent",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6A73",
+        "title": "Dysthymic disorder",
+        "category": "Mood disorders"
+    },
+    {
+        "code": "6B00",
+        "title": "Generalized anxiety disorder",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B01",
+        "title": "Panic disorder",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B02",
+        "title": "Agoraphobia",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B03",
+        "title": "Specific phobia",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B04",
+        "title": "Social anxiety disorder",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B05",
+        "title": "Separation anxiety disorder",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B06",
+        "title": "Selective mutism",
+        "category": "Anxiety or fear-related disorders"
+    },
+    {
+        "code": "6B20",
+        "title": "Obsessive-compulsive disorder",
+        "category": "Obsessive-compulsive or related disorders"
+    },
+    {
+        "code": "6B21",
+        "title": "Body dysmorphic disorder",
+        "category": "Obsessive-compulsive or related disorders"
+    },
+    {
+        "code": "6B22",
+        "title": "Hoarding disorder",
+        "category": "Obsessive-compulsive or related disorders"
+    },
+    {
+        "code": "6B23",
+        "title": "Trichotillomania",
+        "category": "Obsessive-compulsive or related disorders"
+    },
+    {
+        "code": "6B24",
+        "title": "Excoriation disorder",
+        "category": "Obsessive-compulsive or related disorders"
+    },
+    {
+        "code": "6B40",
+        "title": "Post-traumatic stress disorder",
+        "category": "Disorders specifically associated with stress"
+    },
+    {
+        "code": "6B41",
+        "title": "Complex post-traumatic stress disorder",
+        "category": "Disorders specifically associated with stress"
+    },
+    {
+        "code": "6B42",
+        "title": "Acute stress disorder",
+        "category": "Disorders specifically associated with stress"
+    },
+    {
+        "code": "6B43",
+        "title": "Adjustment disorder",
+        "category": "Disorders specifically associated with stress"
+    },
+    {
+        "code": "6B45",
+        "title": "Prolonged grief disorder",
+        "category": "Disorders specifically associated with stress"
+    },
+    {
+        "code": "6B60",
+        "title": "Dissociative disorders, unspecified",
+        "category": "Dissociative disorders"
+    },
+    {
+        "code": "6B61",
+        "title": "Dissociative identity disorder",
+        "category": "Dissociative disorders"
+    },
+    {
+        "code": "6B62",
+        "title": "Dissociative amnesia",
+        "category": "Dissociative disorders"
+    },
+    {
+        "code": "6B80",
+        "title": "Anorexia nervosa",
+        "category": "Feeding or eating disorders"
+    },
+    {
+        "code": "6B81",
+        "title": "Bulimia nervosa",
+        "category": "Feeding or eating disorders"
+    },
+    {
+        "code": "6B82",
+        "title": "Binge eating disorder",
+        "category": "Feeding or eating disorders"
+    },
+    {
+        "code": "6C40",
+        "title": "Disorders due to alcohol use",
+        "category": "Disorders due to substance use or addictive behaviours"
+    },
+    {
+        "code": "6C4F",
+        "title": "Gaming disorder",
+        "category": "Disorders due to substance use or addictive behaviours"
+    },
+    {
+        "code": "6C71",
+        "title": "Compulsive sexual behaviour disorder",
+        "category": "Impulse control disorders"
+    },
+    {
+        "code": "6E60",
+        "title": "Personality disorder",
+        "category": "Personality disorders and related traits"
+    }
+]

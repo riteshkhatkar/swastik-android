@@ -1,0 +1,50 @@
+.doctors-info-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e8e8e8;
+  padding: 20px;
+}
+
+.doctors-info-card--compact { padding: 16px; }
+
+.doctors-info-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2f6f6c;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctors-info-list { display: flex; flex-direction: column; gap: 16px; }
+
+.doctors-info-item {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.doctors-info-item:last-child { padding-bottom: 0; border-bottom: none; }
+
+.doctors-info-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2f6f6c;
+  margin-bottom: 4px;
+}
+
+.doctors-info-spec {
+  font-size: 13px;
+  color: #555;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.doctors-info-qual {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}

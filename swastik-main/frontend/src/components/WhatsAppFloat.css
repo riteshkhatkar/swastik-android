@@ -1,0 +1,55 @@
+/* Floating WhatsApp button – bottom right, visible on all pages, mobile responsive */
+
+.whatsapp-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #25d366;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.2s ease;
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+  background: #20bd5a;
+}
+
+.whatsapp-float:active {
+  transform: scale(0.98);
+}
+
+.whatsapp-float__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whatsapp-float__icon svg {
+  display: block;
+}
+
+/* Mobile: slightly smaller and adjusted position so it doesn’t overlap key UI */
+@media (max-width: 768px) {
+  .whatsapp-float {
+    width: 52px;
+    height: 52px;
+    bottom: 20px;
+    right: 20px;
+  }
+
+  .whatsapp-float__icon svg {
+    width: 26px;
+    height: 26px;
+  }
+}

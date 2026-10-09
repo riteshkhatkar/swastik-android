@@ -1,0 +1,16 @@
+# Swastik Hospital - React frontend
+# Run: docker compose up --build
+# App: http://localhost:3000
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Crater (billing) URL when opened from the app. Use host.docker.internal for Crater on host.
+        REACT_APP_CRATER_URL: ${REACT_APP_CRATER_URL:-http://localhost}
+    image: swastik-hospital-frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped

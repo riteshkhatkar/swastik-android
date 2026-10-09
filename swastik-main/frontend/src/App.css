@@ -1,0 +1,141 @@
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: #f8f9fa;
+  color: #333;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main Content */
+.main {
+  text-align: center;
+  padding: 60px 20px;
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.main h1 {
+  color: #2c3e50;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 20px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 60px;
+  position: relative;
+  display: inline-block;
+}
+
+.subtitle::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background-color: #3498db;
+  border-radius: 2px;
+}
+
+/* Card Container */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main {
+    padding: 40px 15px;
+  }
+
+  .main h1 {
+    font-size: 2rem;
+  }
+
+  .card-container {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding: 30px 10px;
+  }
+
+  .main h1 {
+    font-size: 1.8rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 50px;
+  }
+}
+
+/* Animation for subtle fade-in */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.main h1,
+.subtitle,
+.card-container {
+  animation: fadeIn 0.8s ease-out;
+}
+
+.card-container {
+  animation-delay: 0.2s;
+}
+
+/* Analytics card: theme hover animation */
+.feature-card-link--analytics {
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.feature-card-link--analytics:hover {
+  transform: translateY(-6px);
+}
+
+.feature-card-link--analytics:hover .feature-card {
+  border-color: #2f6f6c;
+  box-shadow: 0 12px 28px rgba(47, 111, 108, 0.2);
+}
+
+.feature-card-link--analytics:hover .card-icon {
+  background: #e8f5f4;
+}

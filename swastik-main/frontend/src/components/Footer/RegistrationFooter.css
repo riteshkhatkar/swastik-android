@@ -1,0 +1,28 @@
+/* Registration footer: same look; content centered */
+.registration-footer {
+  background: white;
+  padding: 20px;
+  padding-right: 10px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: auto;
+}
+
+.registration-footer-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+}
+
+.registration-footer-left {
+  text-align: center;
+}
+
+.registration-copyright {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+  text-align: center;
+}

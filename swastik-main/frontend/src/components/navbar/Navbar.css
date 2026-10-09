@@ -1,0 +1,232 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  padding: 1.25rem 0;
+  background: transparent;
+}
+
+.navbar--scrolled {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.75rem 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.navbar__container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: white;
+  transition: color 0.3s ease;
+}
+
+.navbar--scrolled .navbar__logo {
+  color: #0f172a;
+}
+
+.navbar__logo img {
+  height: 40px;
+  width: auto;
+}
+
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.navbar__link {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0.5rem 0;
+  position: relative;
+}
+
+.navbar--scrolled .navbar__link {
+  color: #475569;
+}
+
+.navbar__link:hover {
+  color: #0d9488;
+}
+
+.navbar__link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #0d9488;
+  transition: width 0.3s ease;
+}
+
+.navbar__link:hover::after {
+  width: 100%;
+}
+
+.navbar__actions {
+  display: flex;
+  gap: 1rem;
+  margin-left: 1rem;
+}
+
+.navbar__btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.navbar__btn--outline {
+  background: transparent;
+  border: 1.5px solid white;
+  color: white;
+}
+
+.navbar--scrolled .navbar__btn--outline {
+  border-color: #0d9488;
+  color: #0d9488;
+}
+
+.navbar__btn--outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar--scrolled .navbar__btn--outline:hover {
+  background: #f0fdfa;
+}
+
+.navbar__btn--primary {
+  background: #0d9488;
+  border: 1.5px solid #0d9488;
+  color: white;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+}
+
+.navbar__btn--primary:hover {
+  background: #0f766e;
+  border-color: #0f766e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
+}
+
+.navbar__mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.navbar__hamburger {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: white;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.navbar--scrolled .navbar__hamburger {
+  background: #0f172a;
+}
+
+.navbar__hamburger::before,
+.navbar__hamburger::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 2px;
+  background: white;
+  transition: all 0.3s;
+}
+
+.navbar--scrolled .navbar__hamburger::before,
+.navbar--scrolled .navbar__hamburger::after {
+  background: #0f172a;
+}
+
+.navbar__hamburger::before {
+  top: -8px;
+}
+
+.navbar__hamburger::after {
+  bottom: -8px;
+}
+
+.navbar__hamburger--open {
+  background: transparent;
+}
+
+.navbar__hamburger--open::before {
+  transform: rotate(45deg);
+  top: 0;
+}
+
+.navbar__hamburger--open::after {
+  transform: rotate(-45deg);
+  bottom: 0;
+}
+
+@media (max-width: 1024px) {
+  .navbar__links {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    height: 100vh;
+    width: 280px;
+    background: white;
+    flex-direction: column;
+    padding: 6rem 2rem;
+    align-items: flex-start;
+    transition: right 0.3s ease;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+  }
+
+  .navbar__links--open {
+    right: 0;
+  }
+
+  .navbar__mobile-toggle {
+    display: block;
+  }
+
+  .navbar__actions {
+    flex-direction: column;
+    width: 100%;
+    margin-left: 0;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+  }
+
+  .navbar__btn {
+    width: 100%;
+    text-align: center;
+  }
+}

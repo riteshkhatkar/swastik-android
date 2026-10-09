@@ -1,0 +1,171 @@
+.staff-role-login-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 80px);
+  /* Fill the screen minus navbar */
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 8rem 2rem 6rem;
+  box-sizing: border-box;
+}
+
+.staff-role-login__container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.staff-role-login__header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 5rem;
+}
+
+.staff-role-login__tagline {
+  color: #0d9488;
+  /* Brand Teal */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.875rem;
+}
+
+.staff-role-login__title {
+  font-size: clamp(2.25rem, 5vw, 3rem);
+  color: #0f172a;
+  /* Dark Navy */
+  margin: 1rem 0 1.25rem;
+  font-weight: 800;
+}
+
+.staff-role-login__subtitle {
+  color: #64748b;
+  /* Muted Slate */
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.staff-role-login__grid {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 3rem;
+  padding: 1rem 0;
+}
+
+.staff-role-login__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.7);
+  /* Glassmorphic card background */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #f1f5f9;
+  border-radius: 24px;
+  padding: 2.5rem 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  width: 180px;
+  box-sizing: border-box;
+}
+
+.staff-role-login__card:hover {
+  transform: translateY(-10px);
+  border-color: #ccfbf1;
+  /* Soft teal border */
+  box-shadow: 0 20px 25px -5px rgba(13, 148, 136, 0.08), 0 10px 10px -5px rgba(13, 148, 136, 0.03);
+}
+
+.staff-role-login__tile {
+  background-color: #f0fdfa;
+  /* Soft teal tint background */
+  border: 1.5px solid #ccfbf1;
+  border-radius: 20px;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.staff-role-login__icon {
+  font-size: 2.5rem;
+  color: #0d9488;
+  /* Brand Teal */
+  transition: all 0.3s ease;
+}
+
+.staff-role-login__card:hover .staff-role-login__tile {
+  background-color: #0d9488;
+  /* Active Solid Teal */
+  border-color: #0d9488;
+  transform: scale(1.08) rotate(3deg);
+}
+
+.staff-role-login__card:hover .staff-role-login__icon {
+  color: #ffffff;
+}
+
+.staff-role-login__label {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.staff-role-login__role-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.staff-role-login__login-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0d9488;
+  /* Clickable login label */
+  margin-top: 0.4rem;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+}
+
+.staff-role-login__card:hover .staff-role-login__login-text {
+  color: #0f766e;
+  /* Darker teal highlight on hover */
+}
+
+@media (max-width: 640px) {
+  .staff-role-login-section {
+    padding: 6rem 1.5rem 4rem;
+    min-height: auto;
+  }
+
+  .staff-role-login__header {
+    margin-bottom: 3.5rem;
+  }
+
+  .staff-role-login__grid {
+    gap: 2rem;
+  }
+
+  .staff-role-login__card {
+    width: calc(50% - 1rem);
+    /* Responsive 2 column wrap on mobile */
+    padding: 2rem 1rem;
+  }
+
+  .staff-role-login__tile {
+    width: 90px;
+    height: 90px;
+  }
+
+  .staff-role-login__icon {
+    font-size: 2.25rem;
+  }
+}

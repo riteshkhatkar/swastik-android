@@ -1,0 +1,359 @@
+/* Patient Registration Modernization */
+.recep-reg {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  padding: 3rem;
+  border-radius: 32px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f1f5f9;
+}
+
+.recep-reg-header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recep-reg-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.recep-reg-uhid {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+}
+
+/* Stepper */
+.recep-reg-stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
+  position: relative;
+}
+
+.recep-reg-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+  width: 12.5%;
+  /* 8 steps */
+  text-align: center;
+}
+
+.recep-reg-step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.recep-reg-step-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.recep-reg-step.active .recep-reg-step-num {
+  background: #0d9488;
+  color: white;
+  box-shadow: 0 0 0 4px #f0fdfa;
+}
+
+.recep-reg-step.active .recep-reg-step-label {
+  color: #0d9488;
+}
+
+.recep-reg-step.done .recep-reg-step-num {
+  background: #f0fdfa;
+  color: #0d9488;
+}
+
+/* Form Styles */
+.recep-reg-step-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+}
+
+.recep-reg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.recep-reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recep-reg-field.full {
+  grid-column: span 2;
+}
+
+.recep-reg-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.recep-reg-field input,
+.recep-reg-field select,
+.recep-reg-field textarea {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  background: #f8fafc;
+}
+
+.recep-reg-field input:focus,
+.recep-reg-field select:focus {
+  outline: none;
+  border-color: #0d9488;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+}
+
+.recep-reg-check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.recep-reg-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0d9488;
+}
+
+/* Actions */
+.recep-reg-actions {
+  margin-top: 3rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 2rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Summary / Paper */
+.recep-reg-summary {
+  text-align: center;
+}
+
+/* Case Paper Design */
+.swastik-case-paper {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #1e293b;
+  position: relative;
+  text-align: left;
+}
+
+.case-paper-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  border-bottom: 2px solid #0d9488;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.case-paper-logo {
+  height: 80px;
+  width: auto;
+}
+
+.case-paper-hospital-info h1 {
+  font-size: 1.75rem;
+  color: #0d9488;
+  margin: 0;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+}
+
+.case-paper-hospital-info p {
+  margin: 0.25rem 0;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.case-paper-address {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.case-paper-section-title {
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0d9488;
+  border-left: 4px solid #0d9488;
+  margin: 1.5rem 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.case-paper-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0 1rem;
+}
+
+.case-item {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.case-item.full {
+  grid-column: span 2;
+}
+
+.case-item strong {
+  color: #64748b;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  margin-right: 0.5rem;
+  font-weight: 600;
+}
+
+.token-highlight {
+  background: #f0fdfa;
+  color: #0d9488;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 800;
+  border: 1px solid #ccfbf1;
+}
+
+.case-paper-footer {
+  margin-top: 4rem;
+}
+
+.case-notes-area {
+  margin-bottom: 3rem;
+}
+
+.notes-line {
+  border-bottom: 1px dashed #e2e8f0;
+  height: 2.5rem;
+}
+
+.case-signature {
+  float: right;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.sig-line {
+  border-bottom: 2px solid #1e293b;
+  width: 200px;
+  margin-bottom: 0.5rem;
+}
+
+.case-signature p {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Print Specific Rules */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .swastik-case-paper,
+  .swastik-case-paper * {
+    visibility: visible;
+  }
+
+  .swastik-case-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .swastik-case-paper {
+    width: 100%;
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .case-paper-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .recep-reg {
+    padding: 1.5rem;
+  }
+
+  .recep-reg-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recep-reg-field.full {
+    grid-column: span 1;
+  }
+
+  .recep-reg-stepper {
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+
+  .recep-reg-step {
+    min-width: 100px;
+  }
+}

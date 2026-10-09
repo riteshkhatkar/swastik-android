@@ -1,0 +1,252 @@
+[
+    {
+        "code": "F41.1",
+        "title": "Generalized anxiety disorder",
+        "category": "Anxiety Disorders"
+    },
+    {
+        "code": "F43.23",
+        "title": "Adjustment disorder with mixed anxiety and depressive mood",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F33.1",
+        "title": "Major depressive disorder, recurrent, moderate",
+        "category": "Depressive Disorders"
+    },
+    {
+        "code": "F43.22",
+        "title": "Adjustment disorder with anxiety",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F41.9",
+        "title": "Anxiety disorder, unspecified",
+        "category": "Anxiety Disorders"
+    },
+    {
+        "code": "F43.20",
+        "title": "Adjustment disorder, unspecified",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F43.10",
+        "title": "Post traumatic stress disorder (PTSD), unspecified",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F43.12",
+        "title": "Post traumatic stress disorder (PTSD), chronic",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "Z63.0",
+        "title": "Problem in relationship with spouse or partner",
+        "category": "Other Conditions That May Be a Focus of Clinical Attention"
+    },
+    {
+        "code": "F43.21",
+        "title": "Adjustment disorder with depressed mood",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F90.2",
+        "title": "Attention-deficit hyperactivity disorder (ADHD), combined type",
+        "category": "Neurodevelopmental Disorders"
+    },
+    {
+        "code": "F90.0",
+        "title": "Attention-deficit hyperactivity disorder (ADHD), predominantly inattentive type",
+        "category": "Neurodevelopmental Disorders"
+    },
+    {
+        "code": "F90.9",
+        "title": "Attention-deficit hyperactivity disorder (ADHD), unspecified type",
+        "category": "Neurodevelopmental Disorders"
+    },
+    {
+        "code": "F84.0",
+        "title": "Autistic disorder",
+        "category": "Neurodevelopmental Disorders"
+    },
+    {
+        "code": "F32.A",
+        "title": "Depression, unspecified",
+        "category": "Depressive Disorders"
+    },
+    {
+        "code": "F43.81",
+        "title": "Prolonged grief disorder",
+        "category": "Trauma- and Stressor-Related Disorders"
+    },
+    {
+        "code": "F50.01",
+        "title": "Anorexia nervosa, restricting type",
+        "category": "Feeding and Eating Disorders"
+    },
+    {
+        "code": "F50.02",
+        "title": "Anorexia nervosa, binge-eating/purging type",
+        "category": "Feeding and Eating Disorders"
+    },
+    {
+        "code": "F50.2",
+        "title": "Bulimia nervosa",
+        "category": "Feeding and Eating Disorders"
+    },
+    {
+        "code": "F50.81",
+        "title": "Binge-eating disorder",
+        "category": "Feeding and Eating Disorders"
+    },
+    {
+        "code": "F42.9",
+        "title": "Obsessive-compulsive disorder, unspecified",
+        "category": "Obsessive-Compulsive and Related Disorders"
+    },
+    {
+        "code": "F42.2",
+        "title": "Hoarding disorder",
+        "category": "Obsessive-Compulsive and Related Disorders"
+    },
+    {
+        "code": "F42.3",
+        "title": "Body dysmorphic disorder",
+        "category": "Obsessive-Compulsive and Related Disorders"
+    },
+    {
+        "code": "F60.0",
+        "title": "Paranoid personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.1",
+        "title": "Schizoid personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F21",
+        "title": "Schizotypal disorder",
+        "category": "Schizophrenia Spectrum and Other Psychotic Disorders"
+    },
+    {
+        "code": "F60.2",
+        "title": "Antisocial personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.3",
+        "title": "Borderline personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.4",
+        "title": "Histrionic personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.5",
+        "title": "Narcissistic personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.6",
+        "title": "Avoidant personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.7",
+        "title": "Dependent personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.8",
+        "title": "Obsessive-compulsive personality disorder",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F60.9",
+        "title": "Personality disorder, unspecified",
+        "category": "Personality Disorders"
+    },
+    {
+        "code": "F06.32",
+        "title": "Psychotic disorder with delusions due to known physiological condition",
+        "category": "Neurocognitive Disorders"
+    },
+    {
+        "code": "F06.34",
+        "title": "Psychotic disorder with hallucinations due to known physiological condition",
+        "category": "Neurocognitive Disorders"
+    },
+    {
+        "code": "F10.20",
+        "title": "Alcohol use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F10.129",
+        "title": "Alcohol use disorder, mild, unspecified",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F10.229",
+        "title": "Alcohol use disorder, moderate, unspecified",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F10.929",
+        "title": "Alcohol use disorder, unspecified, unspecified",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F11.20",
+        "title": "Opioid use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F12.20",
+        "title": "Cannabis use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F13.20",
+        "title": "Sedative, hypnotic, or anxiolytic use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F14.20",
+        "title": "Cocaine use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F15.20",
+        "title": "Other stimulant use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F16.20",
+        "title": "Hallucinogen use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F18.20",
+        "title": "Inhalant use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F19.20",
+        "title": "Other psychoactive substance use disorder, moderate, in early remission",
+        "category": "Substance-Related and Addictive Disorders"
+    },
+    {
+        "code": "F50.89",
+        "title": "Other specified eating disorder",
+        "category": "Feeding and Eating Disorders"
+    },
+    {
+        "code": "F91.9",
+        "title": "Conduct disorder, unspecified",
+        "category": "Disruptive, Impulse-Control, and Conduct Disorders"
+    }
+]

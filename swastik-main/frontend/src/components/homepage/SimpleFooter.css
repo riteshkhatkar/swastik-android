@@ -1,0 +1,31 @@
+/* Simple Footer for Internal/Auth Pages */
+.simple-footer {
+    background: white;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    width: 100%;
+}
+
+.simple-footer .footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.simple-footer .copyright {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+}
+
+@media (max-width: 768px) {
+    .simple-footer {
+        padding: 1rem;
+    }
+
+    .simple-footer .copyright {
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
+}

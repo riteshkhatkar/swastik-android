@@ -1,0 +1,13 @@
+import { Link } from "react-router-dom";
+
+function Register() {
+  return (
+    <div className="register-page">
+      <h1>Register</h1>
+      <Link to="/">Home</Link>
+      <Link to="/login">Login</Link>
+    </div>
+  );
+}
+
+export default Register;

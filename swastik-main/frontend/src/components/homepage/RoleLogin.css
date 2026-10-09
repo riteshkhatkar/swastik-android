@@ -1,0 +1,127 @@
+.role-login-section {
+  padding: 6rem 2rem;
+  background-color: #ffffff;
+}
+
+.role-login__container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.role-login__header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 4rem;
+}
+
+.role-login__tagline {
+  color: #0d9488;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.875rem;
+}
+
+.role-login__title {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  color: #0f172a;
+  margin: 1rem 0 1.25rem;
+  font-weight: 800;
+}
+
+.role-login__subtitle {
+  color: #475569;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.role-login__grid {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 3rem;
+  padding: 1rem 0;
+}
+
+.role-login__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 160px;
+}
+
+.role-login__card:hover {
+  transform: translateY(-8px);
+}
+
+.role-login__tile {
+  background-color: #e0f2fe; /* Soft light-blue background */
+  border: 2px solid #bae6fd;
+  border-radius: 24px;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+}
+
+.role-login__icon {
+  font-size: 2.5rem;
+  color: #0284c7; /* Simple blue line icon */
+  transition: all 0.3s ease;
+}
+
+.role-login__card:hover .role-login__tile {
+  background-color: var(--theme-color, #0ea5e9);
+  border-color: var(--theme-color, #0ea5e9);
+  box-shadow: 0 12px 20px -5px rgba(14, 165, 233, 0.3), 0 8px 8px -5px rgba(14, 165, 233, 0.2);
+}
+
+.role-login__card:hover .role-login__icon {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.role-login__label {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: inherit;
+}
+
+.role-login__label-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.role-login__label-subtitle {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0ea5e9;
+  margin-top: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 640px) {
+  .role-login-section {
+    padding: 4rem 1.5rem;
+  }
+  
+  .role-login__grid {
+    gap: 2rem;
+  }
+  
+  .role-login__card {
+    width: calc(50% - 1rem); /* 2 columns on mobile devices */
+  }
+}

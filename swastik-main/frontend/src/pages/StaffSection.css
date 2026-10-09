@@ -1,0 +1,63 @@
+.staff-section-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.staff-section-header {
+  background: white;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e8eef0;
+}
+
+.staff-section-back {
+  background: none;
+  border: none;
+  color: #1a5f5c;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.staff-section-back:hover {
+  text-decoration: underline;
+}
+
+.staff-section-header h1 {
+  flex: 1;
+  font-size: 1.35rem;
+  color: #222;
+  margin: 0;
+  font-weight: 700;
+}
+
+.staff-section-role {
+  background: #e0f2f1;
+  color: #1a5f5c;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.staff-section-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.staff-section-welcome {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  color: #555;
+  font-size: 1rem;
+  margin: 0;
+}

@@ -1,0 +1,59 @@
+/* Registration header: same look as existing registration page header */
+.registration-header {
+  background: white;
+  padding: 0 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.registration-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.registration-back-btn {
+  background: none;
+  border: none;
+  color: #2f6f6c;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 5px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+}
+
+.registration-back-btn:hover {
+  background: #f0f0f0;
+  transform: translateX(-3px);
+}
+
+.registration-logo-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.registration-header-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.registration-header-text h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+  color: #2f6f6c;
+}
+
+.registration-tagline {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}

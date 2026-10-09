@@ -1,0 +1,56 @@
+# Virtual environments
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environment
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+.venv/
+venv/
+env/
+.env
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Node (frontend)
+node_modules/
+frontend/build/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+
+# Environment files
+.env
+*.env
+
+# If your .env is in backend
+backend/.env

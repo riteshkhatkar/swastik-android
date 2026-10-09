@@ -1,0 +1,323 @@
+/* Lab Report Modal — Professional Hospital Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.lab-report-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: reportFadeIn 0.25s ease;
+}
+
+@keyframes reportFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.lab-report-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.22);
+  max-width: 880px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  animation: reportZoomIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform: scale(0.98);
+}
+
+@keyframes reportZoomIn {
+  to {
+    transform: scale(1);
+  }
+}
+
+.lab-report-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8fafb;
+  border-bottom: 1px solid #e4e9ef;
+}
+
+.lab-report-modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a2b3c;
+}
+
+.lab-report-modal__close {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.lab-report-modal__close:hover {
+  color: #0d9488;
+  border-color: #0d9488;
+  background: #f0fdfa;
+}
+
+.lab-report-modal__loading,
+.lab-report-modal__error {
+  padding: 24px;
+  font-size: 0.95rem;
+}
+
+.lab-report-modal__error {
+  color: #dc2626;
+}
+
+.lab-report-modal__report {
+  padding: 32px 40px;
+  overflow-y: auto;
+  flex: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.lab-report-modal__report-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 3px solid #0d9488;
+  text-align: center;
+}
+
+.lab-report-modal__logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.lab-report-modal__hospital {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0d9488;
+}
+
+.lab-report-modal__sub {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__report-id {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+  background: #f1f5f9;
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.lab-report-modal__section {
+  margin-bottom: 20px;
+}
+
+.lab-report-modal__section-heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0d9488;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding-bottom: 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__block {
+  padding: 14px 18px;
+  background: #f9fafb;
+  border: 1px solid #e4e9ef;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.lab-report-modal__block p {
+  margin: 0 0 6px;
+}
+
+.lab-report-modal__block p:last-child {
+  margin-bottom: 0;
+}
+
+.lab-report-modal__block strong {
+  color: #1a2b3c;
+  min-width: 200px;
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__meta {
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: #f0fdfa;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.9;
+  color: #334155;
+}
+
+.lab-report-modal__meta p {
+  margin: 0 0 6px;
+}
+
+.lab-report-modal__meta p:last-child {
+  margin-bottom: 0;
+}
+
+.lab-report-modal__meta strong {
+  color: #0d9488;
+  min-width: 160px;
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__section-title {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0d9488;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(13, 148, 136, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e4e9ef;
+}
+
+.lab-report-modal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__table th,
+.lab-report-modal__table td {
+  border-bottom: 1px solid #e4e9ef;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.lab-report-modal__table th {
+  background: #0d9488;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.lab-report-modal__table td {
+  color: #1e293b;
+}
+
+.lab-report-modal__table tbody tr:hover {
+  background: #f6fefe;
+}
+
+.lab-report-modal__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.lab-report-modal__disclaimer {
+  margin: 20px 0 16px;
+  padding: 12px 16px;
+  background: #f8fafb;
+  border-left: 4px solid #0d9488;
+  font-size: 0.875rem;
+  color: #52687a;
+  line-height: 1.6;
+  font-family: 'Inter', sans-serif;
+  border-radius: 0 8px 8px 0;
+}
+
+.lab-report-modal__footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e9ef;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.7;
+  font-family: 'Inter', sans-serif;
+}
+
+.lab-report-modal__footer p {
+  margin: 0 0 4px;
+}
+
+.lab-report-modal__footer p:last-child {
+  margin-bottom: 0;
+}
+
+.lab-report-modal__footer-name {
+  font-weight: 700;
+  color: #1a2b3c;
+  font-size: 1rem;
+}
+
+.lab-report-modal__actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e4e9ef;
+  background: #f8fafb;
+}
+
+.lab-report-modal__actions .lab-btn--secondary {
+  background: #fff;
+  color: #0f766e;
+  border: 1.5px solid #0f766e;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lab-report-modal__actions .lab-btn--secondary:hover:not(:disabled) {
+  background: #f0fdfa;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.12);
+}

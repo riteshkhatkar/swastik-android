@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Swastik Hospital – Android Migration Plan</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.45;
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+:root {
+  --teal: #0d9488;
+  --teal-d: #0f766e;
+  --teal-l: #ccfbf1;
+  --teal-xl: #f0fdfa;
+  --navy: #0f172a;
+  --slate: #475569;
+  --muted: #64748b;
+  --border: #cbd5e1;
+  --soft: #f8fafc;
+  --p1: #2563eb;
+  --p1-l: #eff6ff;
+  --p2: #059669;
+  --p2-l: #ecfdf5;
+  --p3: #d97706;
+  --p3-l: #fffbeb;
+  --p4: #dc2626;
+  --p4-l: #fef2f2;
+}
+
+/* ═══════════════ STRICT A4 PAGE SYSTEM ═══════════════ */
+.page {
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  box-sizing: border-box;
+  page-break-after: always;
+  break-after: page;
+  background: #ffffff;
+  padding: 14mm 16mm 12mm 16mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* Header & Footer Bars */
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2.5px solid var(--teal);
+  padding-bottom: 7px;
+  margin-bottom: 10px;
+}
+.header-bar h1 {
+  font-size: 15pt;
+  font-weight: 900;
+  color: var(--teal-d);
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+.header-bar p {
+  font-size: 7.5pt;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.header-badge {
+  background: var(--teal);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer-bar {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 7.5pt;
+  color: var(--muted);
+  margin-top: auto;
+}
+
+/* Content Container */
+.content-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Headings */
+h2 {
+  font-size: 10.5pt;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 8px 0 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+h2::before {
+  content: '';
+  width: 3.5px;
+  height: 13px;
+  background: var(--teal);
+  border-radius: 2px;
+  display: inline-block;
+}
+h3 {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 5px 0 3px;
+}
+p {
+  margin-bottom: 5px;
+  color: var(--slate);
+  font-size: 8.2pt;
+}
+
+/* Cards & Containers */
+.card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.card-soft {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+/* Day Block */
+.day-block {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+}
+.day-badge {
+  font-size: 8pt;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #ffffff;
+}
+.db1 { background: var(--p1); }
+.db2 { background: var(--p2); }
+.db3 { background: var(--p3); }
+.db4 { background: var(--p4); }
+.day-title {
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--navy);
+}
+.day-sub {
+  font-size: 7.2pt;
+  color: var(--muted);
+  margin-left: auto;
+}
+.day-content {
+  padding: 6px 9px;
+  font-size: 8pt;
+  color: var(--slate);
+}
+
+/* Phase Hero Banners */
+.phase-banner {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ffffff;
+}
+.pb1 { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+.pb2 { background: linear-gradient(135deg, #064e3b, #059669); }
+.pb3 { background: linear-gradient(135deg, #78350f, #d97706); }
+.pb4 { background: linear-gradient(135deg, #7f1d1d, #dc2626); }
+.pb-title {
+  font-size: 13pt;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.pb-desc {
+  font-size: 8pt;
+  opacity: 0.9;
+  max-width: 440px;
+  margin-top: 2px;
+}
+.pb-meta {
+  text-align: right;
+  border-left: 1px solid rgba(255,255,255,0.25);
+  padding-left: 14px;
+}
+.pb-meta .duration {
+  font-size: 14pt;
+  font-weight: 900;
+}
+.pb-meta .days {
+  font-size: 7.5pt;
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+
+/* Grids */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+
+/* Lists */
+.step-list { list-style: none; }
+.step-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 7.8pt;
+  line-height: 1.35;
+}
+.step-num {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 7pt;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 7.8pt; }
+thead tr { background: var(--teal); color: #fff; }
+thead th { padding: 5px 7px; text-align: left; font-weight: 700; font-size: 7.5pt; }
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:nth-child(even) { background: var(--soft); }
+tbody td { padding: 4px 7px; color: var(--slate); vertical-align: top; }
+tbody td strong { color: var(--navy); }
+
+/* Code Blocks */
+.code {
+  background: #0f172a;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.2pt;
+  color: #e2e8f0;
+  line-height: 1.45;
+  white-space: pre;
+  margin: 4px 0;
+}
+.cm { color: #64748b; }
+.ck { color: #93c5fd; }
+.cs { color: #86efac; }
+.co { color: #fbbf24; }
+
+/* Callout Box */
+.callout {
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 5px 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 7.8pt;
+}
+.c-info { background: #eff6ff; border-left: 3px solid var(--p1); }
+.c-suc  { background: #ecfdf5; border-left: 3px solid var(--p2); }
+.c-warn { background: #fffbeb; border-left: 3px solid var(--p3); }
+.c-dang { background: #fef2f2; border-left: 3px solid var(--p4); }
+
+/* Badges & Pills */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--teal-l);
+  color: var(--teal-d);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 7.5pt;
+  font-weight: 600;
+  margin: 2px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 7.8pt;
+  color: var(--slate);
+}
+.check-box {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--teal);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════ COVER PAGE SPECIFIC ═══════════════ */
+.cover-page {
+  background: linear-gradient(150deg, #020617 0%, #0f172a 35%, #0d9488 75%, #134e4a 100%);
+  color: #ffffff;
+  padding: 20mm 20mm 16mm 20mm;
+}
+.cover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 12px;
+}
+.cover-logo {
+  font-size: 17pt;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+.cover-logo span { color: #5eead4; }
+.cover-status {
+  background: rgba(16,185,129,0.25);
+  border: 1px solid rgba(16,185,129,0.45);
+  color: #6ee7b7;
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.cover-title-area {
+  margin: 28px 0 20px;
+}
+.cover-eyebrow {
+  font-size: 8.5pt;
+  color: #5eead4;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.cover-h1 {
+  font-size: 38pt;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  margin-bottom: 10px;
+}
+.cover-h1 span { color: #5eead4; }
+.cover-sub {
+  font-size: 12pt;
+  color: rgba(255,255,255,0.75);
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.cover-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+.cover-stat-box {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+.cover-stat-num {
+  font-size: 20pt;
+  font-weight: 900;
+  line-height: 1;
+}
+.cover-stat-lbl {
+  font-size: 7pt;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 4px;
+}
+
+.cover-phases-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+}
+.cover-phase-card {
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.07);
+}
+.cover-phase-week { font-size: 7pt; color: #5eead4; font-weight: 700; text-transform: uppercase; }
+.cover-phase-name { font-size: 9pt; font-weight: 800; margin: 2px 0 4px; }
+.cover-phase-items { font-size: 7pt; color: rgba(255,255,255,0.75); line-height: 1.35; }
+
+.cover-footer-bar {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: rgba(255,255,255,0.5);
+}
+
+@media print {
+  body { background: transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { margin: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 1: EXECUTIVE COVER PAGE
+══════════════════════════════════════════════════════════ -->
+<div class="page cover-page">
+  <div class="cover-header">
+    <div class="cover-logo">Swastik <span>Hospital</span></div>
+    <div class="cover-status">CONFIDENTIAL · MASTER PLAN v2.0</div>
+  </div>
+
+  <div class="cover-title-area">
+    <div class="cover-eyebrow">Enterprise Mobile Architecture</div>
+    <div class="cover-h1">Web to <span>Android</span><br>Migration Master Plan</div>
+    <div class="cover-sub">Complete 30-Day Transition from React Web Application to Native Android App<br>Built with React Native & Expo SDK 51 · Zero Backend Disruption</div>
+  </div>
+
+  <div class="cover-stat-grid">
+    <div class="cover-stat-box"><div class="cover-stat-num" style="color:#5eead4;">30</div><div class="cover-stat-lbl">Days Total</div></div>
+    <div class="cover-stat-box"><div class="cover-stat-num" style="color:#93c5fd;">4</div><div class="cover-stat-lbl">Phases</div></div>
+    <div class="cover-stat-box"><div class="cover-stat-num" style="color:#fbbf24;">60+</div><div class="cover-stat-lbl">Features</div></div>
+    <div class="cover-stat-box"><div class="cover-stat-num" style="color:#f472b6;">6</div><div class="cover-stat-lbl">Roles</div></div>
+    <div class="cover-stat-box"><div class="cover-stat-num" style="color:#c084fc;">8</div><div class="cover-stat-lbl">Modules</div></div>
+  </div>
+
+  <div class="cover-phases-grid">
+    <div class="cover-phase-card">
+      <div class="cover-phase-week">Week 1 · Days 1–7</div>
+      <div class="cover-phase-name">📦 Foundation & Setup</div>
+      <div class="cover-phase-items">• Android Studio & Expo SDK<br>• JWT Auth & SecureStore<br>• Role-Based Routing (6 roles)</div>
+    </div>
+    <div class="cover-phase-card">
+      <div class="cover-phase-week">Week 2 · Days 8–14</div>
+      <div class="cover-phase-name">🏥 Core Hospital Modules</div>
+      <div class="cover-phase-items">• Receptionist Dashboard<br>• Doctor EMR, Vitals & Prescriptions<br>• Lab Tests & Appointments</div>
+    </div>
+    <div class="cover-phase-card">
+      <div class="cover-phase-week">Week 3 · Days 15–21</div>
+      <div class="cover-phase-name">💰 Billing & Admin Suite</div>
+      <div class="cover-phase-items">• Razorpay Payments & UPI<br>• Invoices & Financial Reports<br>• Patient Portal & Notifications</div>
+    </div>
+    <div class="cover-phase-card">
+      <div class="cover-phase-week">Week 4 · Days 22–30</div>
+      <div class="cover-phase-name">🚀 Polish, Test & Launch</div>
+      <div class="cover-phase-items">• Offline Cache & Biometric Auth<br>• 6-Role Testing Matrix<br>• Production APK & Google Play</div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 12px;margin:10px 0;">
+    <div style="font-size:7.5pt;font-weight:700;color:#5eead4;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Technology Stack Alignment</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">React Native</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Expo SDK 51</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Expo Router</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Zustand</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">React Query</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">NativeWind</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Axios</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Razorpay RN</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">Victory Charts</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">expo-print</span>
+      <span class="pill" style="background:rgba(255,255,255,0.15);color:#fff;">EAS Build</span>
+    </div>
+  </div>
+
+  <div class="cover-footer-bar">
+    <span>🏥 Swastik Hospital Management System · Psychiatric Healthcare Platform</span>
+    <span>Document Ref: SH-MIGR-2026-v2 · October 2026</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 2: EXECUTIVE SUMMARY & BUSINESS CONTEXT
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>01 — Executive Summary & Project Purpose</h1>
+      <p>Strategic rationale, operational benefits, and architectural decisions</p>
+    </div>
+    <div class="header-badge">Page 2 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="callout c-suc">
+      <div><strong>🎯 Core Project Objective:</strong> Transition the Swastik Hospital Management System from a browser-dependent web portal into a fast, native Android app for staff tablets and smartphones. All 60+ clinical and administrative features will remain 100% synchronized with the live hospital database.</div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <h3>🏥 About Swastik Hospital Platform</h3>
+        <p>Swastik HMS is a specialized psychiatric hospital platform governing all inpatient (IPD) and outpatient (OPD) care. Current operations include emergency admission protocols, rounding logs, ICD-11 psychiatric diagnosis tracking, SOAP clinical documentation, ward bed allocation, diagnostic laboratory workflows, and multi-tier medical billing.</p>
+        <p>While the existing React 19 web application is fully operational, hospital staff face mobility barriers carrying laptops during ward visits and rounds. The Android migration unlocks bedside access for doctors and field staff.</p>
+      </div>
+      <div class="card">
+        <h3>🔒 Non-Negotiable Architecture Decision</h3>
+        <p><strong>The FastAPI + MongoDB backend remains 100% UNCHANGED.</strong></p>
+        <p>The Android application functions purely as a new native client consuming the existing REST API endpoints over secure HTTPS. This eliminates any risk of backend regressions, database migrations, or downtime for ongoing hospital operations during the 30-day mobile buildout.</p>
+        <div style="background:var(--soft);border:1px dashed var(--teal);padding:6px 8px;border-radius:6px;font-size:7.5pt;margin-top:6px;">
+          <strong>Shared Live Database:</strong> Web portal users and Android mobile users simultaneously interact with the same database records in real time.
+        </div>
+      </div>
+    </div>
+
+    <h2>Business Impact & Operational Advantages</h2>
+    <div class="g4">
+      <div class="card-soft" style="text-align:center;">
+        <div style="font-size:18pt;margin-bottom:2px;">⚡</div>
+        <strong>Bedside Mobility</strong>
+        <p style="font-size:7.2pt;margin-top:2px;">Doctors input vitals and SOAP notes right at the patient's bedside without waiting for PC access.</p>
+      </div>
+      <div class="card-soft" style="text-align:center;">
+        <div style="font-size:18pt;margin-bottom:2px;">🔔</div>
+        <strong>Instant Push Alerts</strong>
+        <p style="font-size:7.2pt;margin-top:2px;">Stat lab alerts, queue callouts, and appointment reminders ring directly on staff phones.</p>
+      </div>
+      <div class="card-soft" style="text-align:center;">
+        <div style="font-size:18pt;margin-bottom:2px;">📶</div>
+        <strong>Offline Resiliency</strong>
+        <p style="font-size:7.2pt;margin-top:2px;">Ward staff review cached records and schedules even during basement or WiFi dropouts.</p>
+      </div>
+      <div class="card-soft" style="text-align:center;">
+        <div style="font-size:18pt;margin-bottom:2px;">📲</div>
+        <strong>WhatsApp PDFs</strong>
+        <p style="font-size:7.2pt;margin-top:2px;">Prescriptions and lab receipts are shared directly with patients over WhatsApp in one tap.</p>
+      </div>
+    </div>
+
+    <h2>Project Output & Release Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Deliverable Artifact</th>
+          <th>Format</th>
+          <th>Distribution Method</th>
+          <th>Target Completion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Staff Internal APK</strong></td>
+          <td>Android <code>.apk</code></td>
+          <td>Direct installation link via Google Drive / WhatsApp</td>
+          <td><strong>End of Week 4 (Day 28)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Production Play Bundle</strong></td>
+          <td>Android <code>.aab</code></td>
+          <td>Google Play Console (Internal Testing &amp; Production Track)</td>
+          <td><strong>Day 29</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Clean Source Code</strong></td>
+          <td>Git Repository</td>
+          <td>Private GitLab/GitHub repo with branch protection</td>
+          <td><strong>Continuous (Day 1–30)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Staff Training Manual</strong></td>
+          <td>Interactive PDF</td>
+          <td>Role-specific cheatsheets (Doctor, Reception, Lab, Billing)</td>
+          <td><strong>Day 30</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section A · Page 2 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 3: SYSTEM ARCHITECTURE & TECHNOLOGY STACK
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>02 — System Architecture & Technology Stack</h1>
+      <p>Data flow diagram, client-server integration, and library selection rationale</p>
+    </div>
+    <div class="header-badge">Page 3 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <h2>Client-Server Integration Blueprint</h2>
+    <div style="background:#0f172a;border-radius:8px;padding:10px 14px;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:7.5pt;line-height:1.6;">
+<span style="color:#5eead4;">[ Android Native App ]</span>   → HTTPS API Requests (Axios + JWT Bearer) →   <span style="color:#93c5fd;">[ FastAPI Server (Port 8000) ]</span>
+├── Expo SDK 51 Native Shell                                          ├── FastAPI Python 3.10+
+├── SecureStore (Keystore Encrypted Token)                           ├── Motor Async MongoDB Driver
+├── React Query (5-min In-Memory Cache)                              ├── JWT Cryptographic Verification
+└── Native UI Views (NativeWind + React Native Paper)                └── Razorpay & SMS Gateway Handlers
+                                                                                    ↓
+<span style="color:#fbbf24;">[ Shared Production MongoDB ]</span>  ←←  Reads / Writes to Collections  ←←  <span style="color:#86efac;">[ MongoDB: swastik_hospital ]</span>
+    </div>
+
+    <h2>Curated Technology Stack & Industry Rationale</h2>
+    <div class="g3">
+      <div class="card">
+        <strong>🚀 React Native + Expo 51</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">Shared React logic, zero Java/Kotlin boilerplate, reliable hardware APIs (Camera, Biometrics, Filesystem), and zero build-machine dependency via EAS Cloud.</p>
+      </div>
+      <div class="card">
+        <strong>🗺️ Expo Router + React Nav v6</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">File-based routing matching modern Next.js patterns. Native stack back-behavior and custom bottom tab bars for each of the 6 hospital roles.</p>
+      </div>
+      <div class="card">
+        <strong>🔄 Zustand + React Query v5</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">Zustand manages lightweight global auth states. React Query provides automated background re-fetching, cache invalidation, and offline resilience.</p>
+      </div>
+      <div class="card">
+        <strong>🎨 NativeWind (Tailwind Mobile)</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">Enables identical TailwindCSS utility classes from the web app. Eliminates the need to handcraft StyleSheet objects from scratch.</p>
+      </div>
+      <div class="card">
+        <strong>💳 react-native-razorpay</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">Official Native Android SDK opening embedded UPI apps (GPay, PhonePe, Paytm) and card sheets with cryptographic HMAC verification.</p>
+      </div>
+      <div class="card">
+        <strong>📊 Victory Native + expo-print</strong>
+        <p style="font-size:7.4pt;margin-top:2px;">Victory Native renders fluid SVG revenue charts. Expo-print compiles HTML strings into vector PDF documents ready for WhatsApp dispatch.</p>
+      </div>
+    </div>
+
+    <h2>Web to Android Component Translation Guide</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Web Architecture (HTML / React 19)</th>
+          <th>Android Architecture (React Native)</th>
+          <th>Implementation Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;div&gt;</code> / <code>&lt;section&gt;</code> Layouts</td>
+          <td><code>&lt;View&gt;</code> / <code>&lt;SafeAreaView&gt;</code></td>
+          <td>Flexbox layout defaulting to <code>flexDirection: 'column'</code></td>
+        </tr>
+        <tr>
+          <td><code>&lt;p&gt;</code>, <code>&lt;span&gt;</code>, <code>&lt;h1&gt;</code> Typography</td>
+          <td><code>&lt;Text&gt;</code></td>
+          <td>Mandatory container for all text strings in React Native</td>
+        </tr>
+        <tr>
+          <td>Browser <code>localStorage</code></td>
+          <td><code>expo-secure-store</code></td>
+          <td>Hardware-backed Android Keystore AES-256 encrypted storage</td>
+        </tr>
+        <tr>
+          <td>HTML <code>&lt;table&gt;</code> / Large Lists</td>
+          <td><code>&lt;FlatList&gt;</code></td>
+          <td>Virtualized windowing rendering only visible viewport items</td>
+        </tr>
+        <tr>
+          <td>CSS Modals &amp; Overlays</td>
+          <td><code>&lt;Modal&gt;</code> / React Native Paper</td>
+          <td>Native Android dialog with elevation shadows and backdrop blur</td>
+        </tr>
+        <tr>
+          <td>Client-side jsPDF</td>
+          <td><code>expo-print</code> + <code>expo-sharing</code></td>
+          <td>Renders clean vector PDFs and triggers the Android share sheet</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section A · Page 3 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 4: COMPLETE FEATURE INVENTORY (60+ FEATURES)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>03 — Complete Feature Inventory (60+ Features)</h1>
+      <p>Comprehensive catalog of all modules ported from the web application</p>
+    </div>
+    <div class="header-badge">Page 4 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>🔐 Authentication &amp; Access Control</strong>
+            <span class="pill">3 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• JWT secure token login with automatic session expiration handling<br>• Google OAuth 2.0 social login via <code>expo-auth-session</code><br>• Dynamic role routing: Directs users instantly to role-specific screens</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>🛎️ Receptionist Module</strong>
+            <span class="pill">11 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• OPD &amp; IPD patient registration with emergency case flagging<br>• Instant UHID lookup by name, phone number, or date of birth<br>• Live appointment queue (Confirm, Reschedule, Cancel actions)<br>• Ward and room allocation visualizer with live bed states<br>• Inpatient formal admission procedures &amp; consent form capture<br>• Discharge clearance workflow with summary generation<br>• Live token ticket counter for doctor consultation queue<br>• Real-time notifications and emergency alerts</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>🩺 Doctor Clinical EMR Module</strong>
+            <span class="pill">15 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• Ward Board dashboard tracking active inpatient stability levels<br>• Bedside EMR suite with tabbed clinical inspection views<br>• SOAP clinical notes (Subjective, Objective, Assessment, Plan)<br>• ICD-11 &amp; DSM-5 psychiatric diagnostic code selector<br>• Medication table with frequency, route, dosage, and duration<br>• Vertical clinical history timeline with chronological event dots<br>• Diagnostic lab order dispatch &amp; specimen tracking<br>• Daily physician rounding log &amp; nursing observation notes<br>• Bedside vitals logging (BP, Pulse, Temperature, SpO2, Weight)<br>• Clinical psychiatric risk meter &amp; behavioral flags</p>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>🧪 Laboratory Diagnostic Module</strong>
+            <span class="pill">5 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• Pending test order queue with STAT priority highlighting<br>• Parameterized test result entry with automated reference range validation<br>• Out-of-range clinical flags highlighted in red<br>• Official laboratory test report PDF creation &amp; WhatsApp delivery<br>• Laboratory catalog configuration (Pricing, normal ranges, turnaround)</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>💰 Medical Billing &amp; Invoicing</strong>
+            <span class="pill">9 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• Executive revenue dashboard with daily &amp; monthly receipts<br>• Itemized invoice generation with automated 18% GST calculation<br>• Native Razorpay gateway (UPI, Credit/Debit cards, Netbanking)<br>• Dynamic UPI QR code generator for direct cashier counter scans<br>• Inpatient running bill estimator &amp; discharge clearance bills<br>• Invoice PDF receipt generation &amp; WhatsApp direct sharing</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>👤 Patient Self-Service Portal</strong>
+            <span class="pill">6 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• Self-registration &amp; OTP phone verification<br>• Doctor appointment booking with real-time calendar slot picking<br>• Access to personal verified diagnostic laboratory reports<br>• Complete medical history and prescription PDF downloads</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong>⚙️ Hospital Administration Control</strong>
+            <span class="pill">8 Features</span>
+          </div>
+          <p style="font-size:7.4pt;margin-top:2px;">• Executive KPI dashboard (Revenue, Bed occupancy, Patient volume)<br>• Staff user management (Create, Deactivate, Reset passwords, Roles)<br>• Departmental configurations &amp; clinical fee schedules<br>• Financial audit logs &amp; system health status monitors</p>
+        </div>
+      </div>
+    </div>
+
+    <h2>Mobile-First Enhancements (Exclusive to Android)</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <span class="pill">🔐 Biometric Fingerprint &amp; Face Unlock</span>
+      <span class="pill">🔔 Push Notifications for Appointments &amp; Results</span>
+      <span class="pill">📶 Offline Record Caching Engine</span>
+      <span class="pill">📷 Integrated UHID QR Code Scanner</span>
+      <span class="pill">💬 Native WhatsApp Document Sharing</span>
+      <span class="pill">🔄 Pull-to-Refresh Gesture on All Views</span>
+      <span class="pill">⏱️ 60-Second Auto-Sync Background Queries</span>
+      <span class="pill">🌓 System Dark &amp; Light Theme Support</span>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section A · Page 4 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 5: PHASE 1 — FOUNDATION & SETUP (WEEK 1)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>04 — Phase 1: Foundation & Setup (Week 1, Days 1–7)</h1>
+      <p>Developer environment, architecture scaffolding, API client, and authentication</p>
+    </div>
+    <div class="header-badge">Page 5 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="phase-banner pb1">
+      <div>
+        <div class="pb-title">📦 Phase 1: Foundation &amp; Setup</div>
+        <div class="pb-desc">Establish developer tooling, create the Expo TypeScript project, configure the Axios JWT interceptor, build the Zustand auth store, and verify login flows for all 6 roles.</div>
+      </div>
+      <div class="pb-meta">
+        <div class="duration">Week 1</div>
+        <div class="days">Days 1 – 7</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db1">Day 1</span>
+            <span class="day-title">Environment &amp; Native SDK Setup</span>
+            <span class="day-sub">Tooling Installation</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Install <strong>Node.js v20 LTS</strong> &amp; <strong>Java JDK 17</strong>. Set <code>JAVA_HOME</code> in Windows system variables.</span></li>
+              <li><span class="step-num">2</span><span>Install <strong>Android Studio</strong> + Android SDK Platform 34 + Google Play Intel x86 Emulator.</span></li>
+              <li><span class="step-num">3</span><span>Configure <code>ANDROID_HOME</code> in Environment Variables; verify using command: <code>adb devices</code>.</span></li>
+              <li><span class="step-num">4</span><span>Install global Expo tooling: <code>npm install -g expo-cli eas-cli</code>.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db1">Day 2</span>
+            <span class="day-title">Project Scaffolding &amp; Packages</span>
+            <span class="day-sub">Expo SDK 51 Setup</span>
+          </div>
+          <div class="day-content">
+            <div class="code"><span class="cm"># Initialize Expo Project</span>
+npx create-expo-app swastik-mobile -t blank-typescript
+cd swastik-mobile
+
+<span class="cm"># Install Hardware & Native Packages</span>
+npx expo install expo-router expo-secure-store expo-camera \
+  expo-notifications expo-local-authentication expo-sharing \
+  expo-print expo-image @react-native-picker/picker
+
+<span class="cm"># Install State, Networking, UI & Charts</span>
+npm install axios zustand @tanstack/react-query nativewind \
+  tailwindcss victory-native react-native-svg react-native-razorpay</div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db1">Day 3</span>
+            <span class="day-title">Clean Directory Architecture</span>
+            <span class="day-sub">File Tree Layout</span>
+          </div>
+          <div class="day-content">
+            <div class="code">swastik-mobile/
+├── app/                  <span class="cm"># Expo Router screens</span>
+│   ├── (auth)/login.tsx  <span class="cm"># Login flow</span>
+│   ├── (admin)/          <span class="cm"># Admin dashboard & tabs</span>
+│   ├── (doctor)/         <span class="cm"># Doctor EMR & ward board</span>
+│   ├── (receptionist)/   <span class="cm"># Front desk & admissions</span>
+│   ├── (lab)/            <span class="cm"># Pathology & test entry</span>
+│   ├── (billing)/        <span class="cm"># Invoices & Razorpay</span>
+│   └── (portal)/         <span class="cm"># Patient self-service</span>
+├── services/api.ts       <span class="cm"># Axios client with interceptor</span>
+├── store/authStore.ts    <span class="cm"># Zustand auth state</span>
+└── components/           <span class="cm"># Reusable atomic UI widgets</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db1">Days 4–5</span>
+            <span class="day-title">API Client &amp; Secure Token Store</span>
+            <span class="day-sub">Networking Layer</span>
+          </div>
+          <div class="day-content">
+            <div class="code"><span class="cm">// services/api.ts</span>
+<span class="ck">import</span> axios <span class="ck">from</span> <span class="cs">'axios'</span>;
+<span class="ck">import</span> * <span class="ck">as</span> SecureStore <span class="ck">from</span> <span class="cs">'expo-secure-store'</span>;
+
+<span class="ck">export const</span> api = axios.create({
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  timeout: <span class="co">25000</span>,
+});
+
+api.interceptors.request.use(<span class="ck">async</span> (config) => {
+  <span class="ck">const</span> token = <span class="ck">await</span> SecureStore.getItemAsync(<span class="cs">'swastik_token'</span>);
+  <span class="ck">if</span> (token) config.headers.Authorization = <span class="cs">`Bearer ${token}`</span>;
+  <span class="ck">return</span> config;
+});</div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db1">Days 6–7</span>
+            <span class="day-title">Login Screen &amp; Role Routing</span>
+            <span class="day-sub">Authentication Flow</span>
+          </div>
+          <div class="day-content">
+            <p>Implement the branded login screen with hospital identity, role selection fallback, and automatic routing to role-specific layouts:</p>
+            <div class="code"><span class="ck">const</span> ROLE_ROUTES = {
+  admin:        <span class="cs">'/(admin)/dashboard'</span>,
+  doctor:       <span class="cs">'/(doctor)/dashboard'</span>,
+  receptionist: <span class="cs">'/(receptionist)/dashboard'</span>,
+  lab:          <span class="cs">'/(lab)/dashboard'</span>,
+  billing:      <span class="cs">'/(billing)/dashboard'</span>,
+  patient:      <span class="cs">'/(portal)/home'</span>,
+};
+<span class="cm">// Navigate: router.replace(ROLE_ROUTES[user.role]);</span></div>
+          </div>
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p1);background:var(--p1-l);">
+          <strong style="color:var(--p1);">✅ Phase 1 Verification Checklist</strong>
+          <div class="check-item"><span class="check-box"></span><span>Android emulator booted &amp; running Expo SDK 51</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Backend reachable over HTTPS from mobile device</span></div>
+          <div class="check-item"><span class="check-box"></span><span>JWT token stored safely in Android Keystore</span></div>
+          <div class="check-item"><span class="check-box"></span><span>All 6 user roles redirect to their designated views</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 5 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 6: PHASE 2 — RECEPTIONIST & DOCTOR (WEEK 2, PART 1)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>05 — Phase 2: Receptionist &amp; Doctor Modules (Week 2, Part 1)</h1>
+      <p>Front-desk operations, patient registration, ward board, and bedside EMR</p>
+    </div>
+    <div class="header-badge">Page 6 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="phase-banner pb2">
+      <div>
+        <div class="pb-title">🏥 Phase 2 (Part 1): Receptionist &amp; Doctor Care</div>
+        <div class="pb-desc">Rebuild the core daily clinical workflow: Reception dashboard with live counters, OPD/IPD registration, ward bed tracking, and the doctor's full bedside EMR suite.</div>
+      </div>
+      <div class="pb-meta">
+        <div class="duration">Week 2</div>
+        <div class="days">Days 8 – 11</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 8</span>
+            <span class="day-title">Receptionist Live Dashboard</span>
+            <span class="day-sub">Front Desk Operations</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Implement 4 live stat cards: <strong>Today's Admissions</strong>, <strong>Active Inpatients</strong>, <strong>Available Rooms</strong>, and <strong>Pending Discharges</strong>.</span></li>
+              <li><span class="step-num">2</span><span>Port web appointments table into an optimized <code>FlatList</code> with patient UHID, doctor name, and time badges.</span></li>
+              <li><span class="step-num">3</span><span>Embed action buttons on each appointment card: <strong>Confirm</strong>, <strong>Reschedule</strong>, and <strong>Cancel</strong> triggering native modals.</span></li>
+              <li><span class="step-num">4</span><span>Configure React Query with <code>refetchInterval: 60000</code> for automatic background queue refreshes.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 9</span>
+            <span class="day-title">Patient Registration Engine</span>
+            <span class="day-sub">OPD / IPD Form Flows</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Wrap form in <code>KeyboardAvoidingView</code> to prevent keyboard obstruction on small phone displays.</span></li>
+              <li><span class="step-num">2</span><span>Text inputs: Full Name, Guardian, Contact Phone, Government ID, Address, Emergency Contact.</span></li>
+              <li><span class="step-num">3</span><span>Native pickers for Gender, Visit Type (OPD/IPD), and Attending Doctor from <code>GET /api/doctors</code>.</span></li>
+              <li><span class="step-num">4</span><span>Submit to <code>POST /api/patients/register</code> and render the auto-generated UHID barcode/QR card.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 10</span>
+            <span class="day-title">Doctor Ward Board &amp; Patient Queue</span>
+            <span class="day-sub">Physician Dashboard</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Executive physician overview: Total assigned patients, critical alerts, and discharge candidates.</span></li>
+              <li><span class="step-num">2</span><span>Instant typeahead search filtering patients by UHID, full name, or room number with 300ms debounce.</span></li>
+              <li><span class="step-num">3</span><span>Color-coded acuity tags: 🔴 Critical Attention, 🟡 Guarded, 🟢 Stable Inpatient.</span></li>
+              <li><span class="step-num">4</span><span>Single tap on any patient card smoothly opens the EMR screen via <code>router.push()</code>.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 11</span>
+            <span class="day-title">Bedside EMR Suite (5 Clinical Tabs)</span>
+            <span class="day-sub">Comprehensive Clinical Record</span>
+          </div>
+          <div class="day-content">
+            <div style="font-size:7.5pt;line-height:1.4;">
+              <strong>1. Vitals Tab:</strong> Numeric grid recording BP (Systolic/Diastolic), Pulse, Temp, SpO2, and Weight.<br>
+              <strong>2. SOAP Notes Tab:</strong> Multiline text areas for Subjective, Objective, Assessment, and Plan observations.<br>
+              <strong>3. Diagnosis Tab:</strong> Searchable psychiatric ICD-11 &amp; DSM-5 code catalog with tap-to-add tags.<br>
+              <strong>4. Medications Tab:</strong> Drug name selector, dosage, route (Oral/IV/IM), frequency, and duration.<br>
+              <strong>5. Clinical Timeline:</strong> Chronological visual timeline of all past notes, tests, and admissions.
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p2);background:var(--p2-l);">
+          <strong style="color:var(--p2);">✅ Days 8–11 Deliverables Verification</strong>
+          <div class="check-item"><span class="check-box"></span><span>Receptionist dashboard auto-refreshes every 60 seconds</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Patient registration assigns unique UHID successfully</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Doctor searches and opens EMR for any hospital patient</span></div>
+          <div class="check-item"><span class="check-box"></span><span>SOAP notes and Vitals commit cleanly to backend database</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 6 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 7: PHASE 2 — PRESCRIPTIONS, LAB & APPOINTMENTS (WEEK 2, PART 2)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>06 — Phase 2: Prescriptions, Lab &amp; Appointments (Week 2, Part 2)</h1>
+      <p>Prescription PDF dispatch, diagnostic laboratory, and visual calendar scheduling</p>
+    </div>
+    <div class="header-badge">Page 7 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 12</span>
+            <span class="day-title">Prescription Generator &amp; WhatsApp</span>
+            <span class="day-sub">Medical Documentation</span>
+          </div>
+          <div class="day-content">
+            <p>Generate authentic medical prescription PDFs with hospital header, doctor credentials, and medication schedule:</p>
+            <div class="code"><span class="ck">import</span> * <span class="ck">as</span> Print <span class="ck">from</span> <span class="cs">'expo-print'</span>;
+<span class="ck">import</span> * <span class="ck">as</span> Sharing <span class="ck">from</span> <span class="cs">'expo-sharing'</span>;
+
+<span class="ck">export async function</span> sharePrescription(rx) {
+  <span class="ck">const</span> html = <span class="cs">`&lt;html&gt;&lt;body style="font-family:Arial;padding:20px;"&gt;
+    &lt;h2 style="color:#0d9488;"&gt;Swastik Hospital&lt;/h2&gt;
+    &lt;p&gt;&lt;b&gt;Patient:&lt;/b&gt; ${rx.patient_name} | &lt;b&gt;UHID:&lt;/b&gt; ${rx.uhid}&lt;/p&gt;
+    &lt;hr/&gt;
+    ${rx.meds.map(m =&gt; `&lt;p&gt;${m.name} - ${m.dose} - ${m.freq}&lt;/p&gt;`).join('')}
+  &lt;/body&gt;&lt;/html&gt;`</span>;
+  <span class="ck">const</span> { uri } = <span class="ck">await</span> Print.printToFileAsync({ html });
+  <span class="ck">await</span> Sharing.shareAsync(uri, { mimeType: <span class="cs">'application/pdf'</span> });
+}</div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 13</span>
+            <span class="day-title">Diagnostic Lab Queue &amp; Results</span>
+            <span class="day-sub">Pathology Workflow</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Lab dashboard highlighting pending orders, STAT orders, and completed batches.</span></li>
+              <li><span class="step-num">2</span><span>Result entry forms displaying normal clinical reference ranges side-by-side with inputs.</span></li>
+              <li><span class="step-num">3</span><span>Automatic alert triggers when values deviate outside normal physiological limits.</span></li>
+              <li><span class="step-num">4</span><span>One-tap generation of signed laboratory report PDFs ready for sharing.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db2">Day 14</span>
+            <span class="day-title">Interactive Appointment Calendar</span>
+            <span class="day-sub">Scheduling System</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Integrate <code>react-native-calendars</code> showing month-at-a-glance view with marked appointment dots.</span></li>
+              <li><span class="step-num">2</span><span>Tapping any date reveals the itemized appointment queue for that specific day below.</span></li>
+              <li><span class="step-num">3</span><span>Reschedule modal allowing selection of alternative consultation dates and timeslots.</span></li>
+              <li><span class="step-num">4</span><span>New appointment booking wizard selecting attending doctor, clinic department, and time.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <h2>End-to-End Hospital Workflow on Mobile</h2>
+        <div style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:7.5pt;line-height:1.5;">
+          <strong>1. Patient Arrival:</strong> Reception registers OPD/IPD patient → generates UHID token.<br>
+          <strong>2. Consultation:</strong> Doctor views queue on mobile Ward Board → opens EMR.<br>
+          <strong>3. Clinical Documentation:</strong> Doctor logs Vitals &amp; SOAP notes → prescribes meds.<br>
+          <strong>4. Diagnostic Orders:</strong> Doctor orders lab tests → Lab Tech receives real-time queue item.<br>
+          <strong>5. Lab Execution:</strong> Lab logs results → generates verified report PDF for patient.<br>
+          <strong>6. Delivery:</strong> Prescription and lab report sent to patient's phone via WhatsApp.
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p2);background:var(--p2-l);margin-top:6px;">
+          <strong style="color:var(--p2);">✅ Phase 2 Complete Milestone Check</strong>
+          <div class="check-item"><span class="check-box"></span><span>Doctor creates and exports prescription PDF via WhatsApp</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Lab orders transition smoothly from Pending to Completed</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Appointments are confirmed, rescheduled, and booked on calendar</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 7 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 8: PHASE 3 — BILLING & PAYMENTS (WEEK 3, PART 1)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>07 — Phase 3: Billing &amp; Razorpay Payments (Week 3, Part 1)</h1>
+      <p>Medical billing, automated GST invoicing, and native Razorpay UPI integration</p>
+    </div>
+    <div class="header-badge">Page 8 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="phase-banner pb3">
+      <div>
+        <div class="pb-title">💰 Phase 3: Medical Billing &amp; Razorpay</div>
+        <div class="pb-desc">Implement the financial backbone: executive revenue dashboards, GST itemized invoicing, embedded Razorpay mobile checkout (UPI, cards, netbanking), and payment verification.</div>
+      </div>
+      <div class="pb-meta">
+        <div class="duration">Week 3</div>
+        <div class="days">Days 15 – 17</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Day 15</span>
+            <span class="day-title">Revenue Dashboard &amp; Analytics</span>
+            <span class="day-sub">Financial Insights</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Executive metric cards: Today's Collections, Monthly Invoiced, Pending Arrears, and Cashier Balance.</span></li>
+              <li><span class="step-num">2</span><span>7-Day revenue trend bar chart rendered natively via Victory Native XL.</span></li>
+              <li><span class="step-num">3</span><span>Payment distribution breakdown (UPI vs Cash vs Card vs Insurance TPA).</span></li>
+              <li><span class="step-num">4</span><span>Searchable invoice audit trail with status filters (Paid, Unpaid, Partial, Overdue).</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Day 16</span>
+            <span class="day-title">Itemized Invoicing &amp; GST Engine</span>
+            <span class="day-sub">Billing Generation</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Patient typeahead search matching UHID and pre-populating patient billing details.</span></li>
+              <li><span class="step-num">2</span><span>Catalog picker adding hospital services (Consultations, Room charges, Tests, Medicines).</span></li>
+              <li><span class="step-num">3</span><span>Dynamic tax calculation: Subtotal, 18% Healthcare GST (where applicable), and Grand Total.</span></li>
+              <li><span class="step-num">4</span><span>Generates formal hospital invoice PDF ready for export and cashier settlement.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Day 17</span>
+            <span class="day-title">Razorpay Payment Integration</span>
+            <span class="day-sub">Native Payment Flow</span>
+          </div>
+          <div class="day-content">
+            <div class="callout c-warn" style="font-size:7.4pt;">
+              <div><strong>🔒 Secure Key Separation:</strong> The Razorpay Key ID is injected via environment variables. The Key Secret remains strictly on the FastAPI backend for cryptographic signature verification.</div>
+            </div>
+            <div class="code"><span class="ck">import</span> RazorpayCheckout <span class="ck">from</span> <span class="cs">'react-native-razorpay'</span>;
+
+<span class="ck">export async function</span> processInvoicePayment(inv) {
+  <span class="ck">const</span> options = {
+    key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID,
+    amount: inv.total * <span class="co">100</span>, <span class="cm">// Amount in paise</span>
+    currency: <span class="cs">'INR'</span>,
+    name: <span class="cs">'Swastik Hospital'</span>,
+    description: <span class="cs">`Invoice #${inv.id}`</span>,
+    prefill: { contact: inv.patient_phone },
+    theme: { color: <span class="cs">'#0d9488'</span> },
+  };
+
+  <span class="ck">const</span> paymentData = <span class="ck">await</span> RazorpayCheckout.open(options);
+  <span class="cm">// Cryptographically verify signature on backend</span>
+  <span class="ck">await</span> api.post(<span class="cs">'/api/billing/payment/verify'</span>, paymentData);
+  Alert.alert(<span class="cs">'Success'</span>, <span class="cs">'Payment verified and invoice settled!'</span>);
+}</div>
+          </div>
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p3);background:var(--p3-l);">
+          <strong style="color:var(--p3);">✅ Days 15–17 Deliverables Verification</strong>
+          <div class="check-item"><span class="check-box"></span><span>Revenue graphs display real receipts from production database</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Invoices compute subtotals, discounts, and GST accurately</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Razorpay native sheet opens UPI apps (GPay, PhonePe) on Android</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Backend verifies payment signature and updates invoice to PAID</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 8 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 9: PHASE 3 — ADMIN, PORTAL & PUSH NOTIFICATIONS (WEEK 3, PART 2)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>08 — Phase 3: Admin, Portal &amp; Push Notifications (Week 3, Part 2)</h1>
+      <p>Administrative governance, patient self-service portal, and notification system</p>
+    </div>
+    <div class="header-badge">Page 9 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Day 18</span>
+            <span class="day-title">Hospital Administration Suite</span>
+            <span class="day-sub">Executive Controls</span>
+          </div>
+          <div class="day-content">
+            <p>Full executive management suite across 8 sub-modules:</p>
+            <div style="font-size:7.4pt;line-height:1.4;">
+              • <strong>Staff Management:</strong> Create staff logins, assign roles, reset credentials.<br>
+              • <strong>Departmental Catalog:</strong> Manage clinics, bed tiers, and fee tables.<br>
+              • <strong>Financial Audits:</strong> Department-wise revenue and expenditure charts.<br>
+              • <strong>System Health:</strong> Monitor database latency, active sessions, and errors.<br>
+              • <strong>Audit Logs:</strong> Tamper-resistant audit trails tracking clinical modifications.
+            </div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Day 19</span>
+            <span class="day-title">Patient Self-Service Portal</span>
+            <span class="day-sub">Patient Mobile Interface</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Patient mobile registration with OTP phone number verification.</span></li>
+              <li><span class="step-num">2</span><span>Self-booking engine: Select preferred psychiatrist, date, and morning/afternoon slot.</span></li>
+              <li><span class="step-num">3</span><span>Digital health locker: View past laboratory test results with graphical trend lines.</span></li>
+              <li><span class="step-num">4</span><span>One-tap download of verified prescriptions and discharge summaries.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db3">Days 20–21</span>
+            <span class="day-title">Push Notifications &amp; Ward Grid</span>
+            <span class="day-sub">Alerts &amp; Bed Occupancy</span>
+          </div>
+          <div class="day-content">
+            <div class="code"><span class="cm">// Device Token Registration</span>
+<span class="ck">import</span> * <span class="ck">as</span> Notifications <span class="ck">from</span> <span class="cs">'expo-notifications'</span>;
+
+<span class="ck">export async function</span> registerDevicePush() {
+  <span class="ck">const</span> { status } = <span class="ck">await</span> Notifications.requestPermissionsAsync();
+  <span class="ck">if</span> (status === <span class="cs">'granted'</span>) {
+    <span class="ck">const</span> token = (<span class="ck">await</span> Notifications.getExpoPushTokenAsync()).data;
+    <span class="ck">await</span> api.post(<span class="cs">'/api/notifications/register'</span>, { token });
+  }
+}</div>
+            <p style="font-size:7.4pt;margin-top:4px;"><strong>Automated Push Notifications Triggered for:</strong></p>
+            <div style="font-size:7.2pt;color:var(--slate);">
+              • Appointment reminder alerts dispatched 2 hours prior to scheduled consultation.<br>
+              • Doctor notification when emergency patient arrives at the front desk.<br>
+              • Patient notification when diagnostic laboratory test results are verified and ready.
+            </div>
+            <p style="font-size:7.4pt;margin-top:4px;"><strong>Room &amp; Bed Visualizer (Day 21):</strong> Color-coded grid showing 🟢 Available Beds, 🔴 Occupied Beds, and 🟡 Maintenance Rooms with single-tap patient reassignment.</p>
+          </div>
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p3);background:var(--p3-l);">
+          <strong style="color:var(--p3);">✅ Phase 3 Complete Milestone Check</strong>
+          <div class="check-item"><span class="check-box"></span><span>Admin suite modifies staff roles and audits system logs cleanly</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Patients self-book appointments and review records on phone</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Push notifications successfully deliver to Android notification tray</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Ward bed visualizer accurately matches hospital floor state</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 9 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 10: PHASE 4 — POLISH, TEST & LAUNCH (WEEK 4)
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>09 — Phase 4: Polish, Testing &amp; Launch (Week 4, Days 22–30)</h1>
+      <p>Offline resilience, biometrics, testing matrix, and APK / Play Store production builds</p>
+    </div>
+    <div class="header-badge">Page 10 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="phase-banner pb4">
+      <div>
+        <div class="pb-title">🚀 Phase 4: Quality, Build &amp; Launch</div>
+        <div class="pb-desc">Implement offline caching and biometric unlock, execute the 6-role end-to-end testing matrix, build the test APK for staff evaluation, and submit the production AAB to Google Play.</div>
+      </div>
+      <div class="pb-meta">
+        <div class="duration">Week 4</div>
+        <div class="days">Days 22 – 30</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <!-- Left Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db4">Days 22–23</span>
+            <span class="day-title">Offline Cache &amp; Biometric Unlock</span>
+            <span class="day-sub">Hardware Integration</span>
+          </div>
+          <div class="day-content">
+            <p><strong>1. Offline Cache:</strong> React Query configured with <code>networkMode: 'offlineFirst'</code> allows staff to inspect patient files, bed lists, and appointments during network drops.</p>
+            <p><strong>2. Biometric Unlock:</strong> Fingerprint &amp; Face ID unlocks authenticated sessions in under 1 second without password re-entry:</p>
+            <div class="code"><span class="ck">import</span> * <span class="ck">as</span> LocalAuth <span class="ck">from</span> <span class="cs">'expo-local-authentication'</span>;
+
+<span class="ck">export async function</span> biometricLogin() {
+  <span class="ck">const</span> result = <span class="ck">await</span> LocalAuth.authenticateAsync({
+    promptMessage: <span class="cs">'Swastik Hospital Staff Authentication'</span>,
+    fallbackLabel: <span class="cs">'Use Password'</span>,
+  });
+  <span class="ck">return</span> result.success;
+}</div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db4">Days 24–26</span>
+            <span class="day-title">6-Role End-to-End QA Testing</span>
+            <span class="day-sub">Quality Assurance Matrix</span>
+          </div>
+          <div class="day-content">
+            <div class="g2" style="font-size:7.2pt;gap:4px;">
+              <div>
+                <strong>Admin &amp; Reception:</strong><br>
+                • Staff creation &amp; permission locks<br>
+                • OPD/IPD registration &amp; UHID search<br>
+                • Appointment confirm / reschedule<br>
+                • Bed allocation &amp; formal discharge
+              </div>
+              <div>
+                <strong>Doctor, Lab &amp; Billing:</strong><br>
+                • Ward board sorting &amp; EMR tabs<br>
+                • SOAP notes &amp; Vitals validation<br>
+                • Lab orders &amp; result ranges<br>
+                • Razorpay UPI settlement verification
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db4">Days 27–29</span>
+            <span class="day-title">Production EAS Builds (APK &amp; AAB)</span>
+            <span class="day-sub">Cloud Build Execution</span>
+          </div>
+          <div class="day-content">
+            <div class="code"><span class="cm"># 1. Login to Expo EAS Cloud</span>
+eas login
+
+<span class="cm"># 2. Build Testing APK (Day 28)</span>
+eas build -p android --profile preview
+<span class="cm"># Output: SwastikHospital-v1.0.apk (Direct install)</span>
+
+<span class="cm"># 3. Build Google Play Production AAB (Day 29)</span>
+eas build -p android --profile production
+<span class="cm"># Output: SwastikHospital-v1.0.aab (Play Store package)</span></div>
+            <div class="callout c-suc" style="font-size:7.4pt;margin-top:4px;">
+              <div><strong>☁️ Cloud Compilation:</strong> Builds compile on Expo's dedicated cloud servers in 12–15 minutes, generating clean APK download URLs ready to send to staff via WhatsApp.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-header">
+            <span class="day-badge db4">Day 30</span>
+            <span class="day-title">Hospital Rollout &amp; Staff Onboarding</span>
+            <span class="day-sub">Go-Live Execution</span>
+          </div>
+          <div class="day-content">
+            <ul class="step-list">
+              <li><span class="step-num">1</span><span>Install testing APK on hospital ward tablets and doctors' personal Android phones.</span></li>
+              <li><span class="step-num">2</span><span>Host 30-minute hands-on orientation for nursing and front-desk reception teams.</span></li>
+              <li><span class="step-num">3</span><span>Monitor live FastAPI server logs for any anomalies or mobile latency bottlenecks.</span></li>
+              <li><span class="step-num">4</span><span>🎉 Official transition to mobile hospital operations.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="border:1.5px solid var(--p4);background:var(--p4-l);">
+          <strong style="color:var(--p4);">✅ Final Production Readiness Checklist</strong>
+          <div class="check-item"><span class="check-box"></span><span>Tested across Android versions 8.0 through 14.0</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Standalone <code>.apk</code> installs smoothly on staff mobile phones</span></div>
+          <div class="check-item"><span class="check-box"></span><span>Play Store <code>.aab</code> package signed with release keystore</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section B · Page 10 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 11: MASTER TIMELINE & BACKEND API REFERENCE
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>10 — Master Timeline &amp; Backend API Reference</h1>
+      <p>30-Day Gantt visual roadmap and complete REST API consumption catalog</p>
+    </div>
+    <div class="header-badge">Page 11 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <h2>30-Day Visual Gantt Implementation Roadmap</h2>
+    <div style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 1–7</span>
+        <div style="flex:1;background:var(--p1);color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 1: Environment, Expo SDK 51, JWT Interceptor, 6-Role Auth &amp; Routing</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 8–11</span>
+        <div style="flex:1;background:var(--p2);color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 2A: Receptionist Dashboard, OPD/IPD Registration, Doctor Ward Board &amp; EMR</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 12–14</span>
+        <div style="flex:1;background:#047857;color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 2B: Prescription PDFs, WhatsApp Sharing, Lab Tests &amp; Appointment Calendar</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 15–17</span>
+        <div style="flex:1;background:var(--p3);color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 3A: Medical Billing, Automated GST Invoicing, Razorpay Native UPI Integration</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 18–21</span>
+        <div style="flex:1;background:#b45309;color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 3B: Hospital Admin Suite, Patient Portal, Push Alerts, Ward Bed Visualizer</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:75px;font-size:7.5pt;font-weight:700;">Days 22–30</span>
+        <div style="flex:1;background:var(--p4);color:#fff;border-radius:4px;padding:2px 8px;font-size:7.2pt;font-weight:700;">Phase 4: Offline Engine, Biometrics, 6-Role QA Matrix, APK / Play Store AAB &amp; Launch</div>
+      </div>
+    </div>
+
+    <h2>Backend REST Endpoints Consumed by Android App</h2>
+    <div class="g2">
+      <!-- Left API Column -->
+      <div>
+        <div class="card" style="padding:6px 8px;">
+          <strong style="font-size:7.8pt;">🔐 Authentication &amp; User Directory</strong>
+          <table>
+            <tbody>
+              <tr><td style="width:45px;"><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/auth/login</code></td><td>Authenticates credentials &amp; issues JWT token</td></tr>
+              <tr><td><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/auth/me</code></td><td>Retrieves logged-in user profile &amp; role</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/admin/users</code></td><td>Creates new staff credentials (Admin only)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" style="padding:6px 8px;">
+          <strong style="font-size:7.8pt;">🛎️ Patients, Admissions &amp; Rooms</strong>
+          <table>
+            <tbody>
+              <tr><td style="width:45px;"><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/patients</code></td><td>Search patients by UHID / Name / Phone</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/patients/register</code></td><td>Creates new OPD / IPD patient profile</td></tr>
+              <tr><td><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/rooms</code></td><td>Retrieves live room &amp; bed occupancy grid</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/admissions</code></td><td>Formally admits patient to inpatient ward</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right API Column -->
+      <div>
+        <div class="card" style="padding:6px 8px;">
+          <strong style="font-size:7.8pt;">🩺 Clinical EMR &amp; Pathology Lab</strong>
+          <table>
+            <tbody>
+              <tr><td style="width:45px;"><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/emr/{patient_id}</code></td><td>Fetches complete patient EMR records</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/emr</code></td><td>Saves Vitals, SOAP notes, and Medications</td></tr>
+              <tr><td><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/lab/orders</code></td><td>Fetches pending pathology diagnostic queue</td></tr>
+              <tr><td><span class="day-badge db3" style="font-size:6.5pt;">PUT</span></td><td><code>/api/lab/results/{id}</code></td><td>Commits verified test values &amp; generates PDF</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" style="padding:6px 8px;">
+          <strong style="font-size:7.8pt;">💰 Billing &amp; Appointments</strong>
+          <table>
+            <tbody>
+              <tr><td style="width:45px;"><span class="day-badge db1" style="font-size:6.5pt;">GET</span></td><td><code>/api/appointments</code></td><td>Retrieves appointment schedule for given date</td></tr>
+              <tr><td><span class="day-badge db3" style="font-size:6.5pt;">PUT</span></td><td><code>/api/appointments/{id}</code></td><td>Updates status: Confirm / Reschedule / Cancel</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/billing/invoices</code></td><td>Generates itemized GST invoice</td></tr>
+              <tr><td><span class="day-badge db2" style="font-size:6.5pt;">POST</span></td><td><code>/api/billing/payment/verify</code></td><td>Verifies Razorpay cryptographic signature</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section C · Page 11 of 12</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE 12: SECURITY, FAQ & EXECUTIVE SIGN-OFF
+══════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <h1>11 — Security, FAQ &amp; Executive Sign-off</h1>
+      <p>Data protection safeguards, common stakeholder inquiries, and project approval</p>
+    </div>
+    <div class="header-badge">Page 12 of 12</div>
+  </div>
+
+  <div class="content-body">
+    <div class="g2">
+      <!-- Left Column: Security & Risks -->
+      <div>
+        <h2>Security &amp; Data Privacy Framework</h2>
+        <div class="card-soft" style="font-size:7.5pt;line-height:1.45;margin-bottom:6px;">
+          <strong>🔐 Hardware-Backed Token Storage:</strong><br>
+          Session tokens are saved exclusively using <code>expo-secure-store</code> utilizing the Android Keystore system. Tokens cannot be extracted even if the device is plugged into a PC.<br><br>
+          <strong>🌐 Zero Hardcoded Credentials:</strong><br>
+          API URLs and Razorpay Key IDs are injected via <code>.env</code> files with the <code>EXPO_PUBLIC_</code> prefix. The <code>.env</code> file is strictly excluded from version control via <code>.gitignore</code>.<br><br>
+          <strong>📋 Minimal Local PHI Retention:</strong><br>
+          Patient health information is held temporarily in volatile memory by React Query and purged automatically upon application logout. No medical records are written to unencrypted storage.<br><br>
+          <strong>🛡️ Cryptographic Payment Settlement:</strong><br>
+          Payments are never verified locally on mobile. The mobile app receives Razorpay response tokens and routes them to the FastAPI backend for SHA-256 HMAC signature verification.
+        </div>
+
+        <h2>Risk Management &amp; Contingencies</h2>
+        <table>
+          <thead>
+            <tr><th>Identified Risk</th><th>Mitigation Strategy</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>WiFi dead zones in hospital</strong></td>
+              <td>React Query offline cache preserves previously fetched records and queue views.</td>
+            </tr>
+            <tr>
+              <td><strong>Google Play review delays</strong></td>
+              <td>Standalone APK distributed directly to staff devices on Day 28, bypassing store approval.</td>
+            </tr>
+            <tr>
+              <td><strong>Complex psychiatric EMR</strong></td>
+              <td>Built with native tabs and specialized pickers matching the web interface identically.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Right Column: FAQ & Approval -->
+      <div>
+        <h2>Frequently Asked Questions</h2>
+        <div style="font-size:7.4pt;line-height:1.4;">
+          <strong>Q: Does the website stop working when the Android app is deployed?</strong><br>
+          <span style="color:var(--slate);">A: No. Both the web portal and Android app operate simultaneously connected to the same live FastAPI backend and MongoDB database.</span><br><br>
+
+          <strong>Q: Can doctors use their personal Android phones safely?</strong><br>
+          <span style="color:var(--slate);">A: Yes. All data travels over HTTPS, session tokens are hardware encrypted, and biometric unlock prevents unauthorized device access.</span><br><br>
+
+          <strong>Q: How do we roll out app updates after launch?</strong><br>
+          <span style="color:var(--slate);">A: Using Expo EAS Update, non-native code fixes and UI improvements can be published over-the-air instantly without requiring staff to reinstall APKs.</span>
+        </div>
+
+        <h2 style="margin-top:10px;">Executive Project Approval &amp; Sign-off</h2>
+        <div style="background:var(--soft);border:1.5px solid var(--teal);border-radius:8px;padding:8px 10px;font-size:7.5pt;margin-top:4px;">
+          <p style="font-size:7.5pt;margin-bottom:8px;">By signing below, stakeholders approve the 30-day Android Migration Plan, technical scope, architectural boundaries, and resource commitments:</p>
+          <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:4px;">
+            <div style="border-top:1px solid #94a3b8;width:30%;text-align:center;">
+              <strong style="font-size:7pt;">Medical Director</strong><br><span style="font-size:6.5pt;color:var(--muted);">Swastik Hospital</span>
+            </div>
+            <div style="border-top:1px solid #94a3b8;width:30%;text-align:center;">
+              <strong style="font-size:7pt;">Chief Technology Lead</strong><br><span style="font-size:6.5pt;color:var(--muted);">Development Team</span>
+            </div>
+            <div style="border-top:1px solid #94a3b8;width:30%;text-align:center;">
+              <strong style="font-size:7pt;">Operations Head</strong><br><span style="font-size:6.5pt;color:var(--muted);">Project Sponsor</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>Swastik Hospital · Android Migration Master Plan</span>
+    <span>Section C · Page 12 of 12</span>
+  </div>
+</div>
+
+</body>
+</html>

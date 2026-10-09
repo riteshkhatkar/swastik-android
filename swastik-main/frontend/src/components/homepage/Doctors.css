@@ -1,0 +1,132 @@
+.home-doctors {
+  padding: 5rem 1.5rem;
+  background: #f0f4f8;
+}
+
+.home-doctors__inner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.home-doctors__title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #1a365d;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.home-doctors__intro {
+  font-size: 1.1rem;
+  color: #4a5568;
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.home-doctors__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2.5rem;
+  justify-content: center;
+}
+
+.home-doctors__card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-doctors__card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.home-doctors__img-wrapper {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: #f7fafc;
+}
+
+.home-doctors__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-doctors__exp-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #064e3b;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.home-doctors__content {
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+.home-doctors__name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.home-doctors__specialty {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.home-doctors__booking-link {
+  margin-top: auto;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #004d4d;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.home-doctors__booking-link:hover {
+  color: #008080;
+}
+
+.home-doctors__booking-link .arrow {
+  margin-left: 8px;
+  font-size: 1.4rem;
+  transition: transform 0.2s;
+}
+
+.home-doctors__booking-link:hover .arrow {
+  transform: translateX(4px);
+}
+
+@media (max-width: 768px) {
+  .home-doctors__grid {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .home-doctors__img-wrapper {
+    height: 350px;
+  }
+}

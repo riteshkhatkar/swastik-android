@@ -1,0 +1,151 @@
+/* MainLayout – header and footer for all pages after login. Matches home page style. */
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.main-layout-header {
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05);
+}
+
+.main-layout-header-inner {
+  width: 100%;
+  padding: 0 24px;
+  height: 64px; /* h-16 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.main-layout-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0f172a;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.main-layout-logo img {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+}
+
+.main-layout-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.main-layout-role-badge {
+  background: #f1f5f9; /* slate-100 */
+  color: #475569; /* slate-600 */
+  padding: 4px 10px;
+  border-radius: 9999px; /* rounded-full */
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1px solid #e2e8f0;
+}
+
+.main-layout-logout-btn {
+  background: #0f766e; /* solid teal matching theme */
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px; /* rounded-lg */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(15, 118, 110, 0.1);
+  transition: all 0.2s ease;
+}
+
+.main-layout-logout-btn:hover {
+  background: #115e59; /* darker teal on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(15, 118, 110, 0.15);
+}
+
+.main-layout-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-layout-footer {
+  background: #f5f7fa;
+  border-top: 1px solid #e0e0e0;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.main-layout-footer-content {
+  margin: 0 auto;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.main-layout-footer-copyright {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Helper for specialized layouts that handle their own headers/footers */
+.main-layout.specialized {
+  display: block;
+}
+
+.main-layout-content.no-padding {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+@media (max-width: 768px) {
+  .main-layout-header-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .main-layout-logo img {
+    height: 40px;
+  }
+
+  .main-layout-logo span {
+    font-size: 1.1rem;
+  }
+
+  .main-layout-footer-copyright {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-layout-role-badge {
+    display: none;
+  }
+}
