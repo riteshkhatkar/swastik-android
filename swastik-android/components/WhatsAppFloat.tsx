@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export const WhatsAppFloat: React.FC = () => {
   const handleOpenWhatsApp = () => {
-    const hospitalPhone = '+919876543210';
+    const hospitalPhone = process.env.EXPO_PUBLIC_WHATSAPP_NUMBER || '+919876543210';
     const url = `whatsapp://send?phone=${hospitalPhone}&text=Hello Swastik Hospital, I need assistance.`;
     Linking.canOpenURL(url).then(supported => {
       if (supported) {
