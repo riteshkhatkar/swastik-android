@@ -56,8 +56,8 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
         const mapped = data.map((d: any) => ({
           id: String(d.id || d._id || ''),
           patientName: d.patient_name || d.patientName || d.patient_info?.name || 'Patient',
-          uhid: d.uhid || (d.patient_info?.uhid) || 'SWH-2026-0001',
-          billNo: d.invoice_number || (d.id ? `INV-${d.id.slice(-6)}` : 'INV-001'),
+          uhid: d.uhid || d.patient_info?.uhid || '-',
+          billNo: d.invoice_number || (d.id ? `INV-${d.id.slice(-6)}` : '-'),
           type: d.department || d.visit_type || 'OPD',
           amount: Number(d.total || d.amount || 0),
           status: String(d.status || 'PENDING').toUpperCase() === 'PAID' ? 'PAID' : 'PENDING',
@@ -70,6 +70,7 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
       }
     } catch (e: any) {
       console.warn('Error loading bills:', e);
+      Alert.alert('Billing Notice', getApiErrorMessage(e));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -297,69 +298,81 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
 
         {/* Bill Cards List matching Image 13 */}
         <View style={styles.billsList}>
-          {filteredBills.map((bill) => {
-            const isPaid = bill.status === 'PAID';
+          {filteredBills.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons name="receipt-text-outline" size={48} color="#94A3B8" />
+              <Text style={styles.emptyTitle}>No Bills Found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery
+                  ? 'No patient bills match your search criteria.'
+                  : `No ${activeTab.toLowerCase()} bills recorded in the system.`}
+              </Text>
+            </View>
+          ) : (
+            filteredBills.map((bill) => {
+              const isPaid = bill.status === 'PAID';
 
-            return (
-              <TouchableOpacity
-                key={bill.id}
-                style={styles.billCard}
-                onPress={() => setSelectedBill(bill)}
-                activeOpacity={0.75}
-              >
-                {/* Avatar */}
-                <View style={styles.avatarCircle}>
-                  <Ionicons name="person" size={20} color="#0D9488" />
-                </View>
+              return (
+                <TouchableOpacity
+                  key={bill.id}
+                  style={styles.billCard}
+                  onPress={() => setSelectedBill(bill)}
+                  activeOpacity={0.75}
+                >
+                  {/* Avatar */}
+                  <View style={styles.avatarCircle}>
+                    <Ionicons name="person" size={20} color="#0D9488" />
+                  </View>
 
-                {/* Patient Info */}
-                <View style={styles.billInfoCol}>
-                  <Text style={styles.billPatientName}>{bill.patientName}</Text>
-                  <Text style={styles.billUhidText}>UHID: {bill.uhid}</Text>
-                  <Text style={styles.billNoText}>Bill No: {bill.billNo}</Text>
-                </View>
+                  {/* Patient Info */}
+                  <View style={styles.billInfoCol}>
+                    <Text style={styles.billPatientName}>{bill.patientName}</Text>
+                    <Text style={styles.billUhidText}>UHID: {bill.uhid}</Text>
+                    <Text style={styles.billNoText}>Bill No: {bill.billNo}</Text>
+                  </View>
 
-                {/* Service Badge (OPD, Admission, Pharmacy, Lab) */}
-                <View style={styles.servicePill}>
-                  {bill.type === 'OPD' && (
-                    <MaterialCommunityIcons name="stethoscope" size={14} color="#0D9488" />
-                  )}
-                  {bill.type === 'Admission' && (
-                    <MaterialCommunityIcons name="bed" size={14} color="#0284C7" />
-                  )}
-                  {bill.type === 'Pharmacy' && (
-                    <MaterialCommunityIcons name="pill" size={14} color="#0D9488" />
-                  )}
-                  {bill.type === 'Lab' && (
-                    <MaterialCommunityIcons name="flask-outline" size={14} color="#DB2777" />
-                  )}
-                  <Text style={styles.servicePillText}>{bill.type}</Text>
-                </View>
+                  {/* Service Badge (OPD, Admission, Pharmacy, Lab) */}
+                  <View style={styles.servicePill}>
+                    {bill.type === 'OPD' && (
+                      <MaterialCommunityIcons name="stethoscope" size={14} color="#0D9488" />
+                    )}
+                    {bill.type === 'Admission' && (
+                      <MaterialCommunityIcons name="bed" size={14} color="#0284C7" />
+                    )}
+                    {bill.type === 'Pharmacy' && (
+                      <MaterialCommunityIcons name="pill" size={14} color="#0D9488" />
+                    )}
+                    {bill.type === 'Lab' && (
+                      <MaterialCommunityIcons name="flask-outline" size={14} color="#DB2777" />
+                    )}
+                    <Text style={styles.servicePillText}>{bill.type}</Text>
+                  </View>
 
-                {/* Amount and Status */}
-                <View style={styles.amountCol}>
-                  <Text style={styles.amountText}>₹{bill.amount.toFixed(2)}</Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      isPaid ? styles.statusBadgePaid : styles.statusBadgePending,
-                    ]}
-                  >
-                    <Text
+                  {/* Amount and Status */}
+                  <View style={styles.amountCol}>
+                    <Text style={styles.amountText}>₹{bill.amount.toFixed(2)}</Text>
+                    <View
                       style={[
-                        styles.statusBadgeText,
-                        isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending,
+                        styles.statusBadge,
+                        isPaid ? styles.statusBadgePaid : styles.statusBadgePending,
                       ]}
                     >
-                      {bill.status}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending,
+                        ]}
+                      >
+                        {bill.status}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <Feather name="chevron-right" size={18} color="#94A3B8" />
-              </TouchableOpacity>
-            );
-          })}
+                  <Feather name="chevron-right" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
 
         {/* Bottom "Create New Bill" Action Button matching Image 13 */}
@@ -960,5 +973,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#1E293B',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

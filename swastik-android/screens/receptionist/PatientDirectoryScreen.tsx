@@ -13,10 +13,11 @@ import {
   Modal,
   Linking,
   Platform,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { receptionistApi } from '../../services/api';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { receptionistApi, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 interface PatientDirectoryScreenProps {
@@ -32,18 +33,34 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
   const { user } = useAuthStore();
   const receptionistName = user?.full_name || 'Priya Sharma';
 
+  const PAGE_SIZE = 20;
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
 
-  const loadPatients = async () => {
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Bulk CSV Import state
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  const loadPatients = async (targetPage: number = 0) => {
     try {
-      const data = await receptionistApi.getPatients(0, 100, searchQuery || undefined);
-      setPatients(Array.isArray(data) ? data : []);
+      setLoading(true);
+      const skip = targetPage * PAGE_SIZE;
+      const data = await receptionistApi.getPatients(skip, PAGE_SIZE, searchQuery || undefined);
+      const list = Array.isArray(data) ? data : [];
+      setPatients(list);
+      setPage(targetPage);
+      setHasMore(list.length === PAGE_SIZE);
     } catch (e: any) {
       console.warn('Error loading patients:', e);
+      Alert.alert('Load Error', getApiErrorMessage(e));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -51,12 +68,82 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
   };
 
   useEffect(() => {
-    loadPatients();
+    loadPatients(0);
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadPatients();
+    loadPatients(0);
+  };
+
+  const handleNextPage = () => {
+    if (hasMore) {
+      loadPatients(page + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (page > 0) {
+      loadPatients(page - 1);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if (!csvText.trim()) {
+      Alert.alert('Validation Error', 'Please paste or enter CSV data to import.');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      // Split into non-empty lines
+      const lines = csvText.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        Alert.alert('Empty CSV', 'No data rows found in CSV text.');
+        return;
+      }
+
+      // Check if first row is header
+      let startIdx = 0;
+      if (lines[0].toLowerCase().includes('name') && lines[0].toLowerCase().includes('phone')) {
+        startIdx = 1;
+      }
+
+      const patientsToImport: any[] = [];
+      for (let i = startIdx; i < lines.length; i++) {
+        const parts = lines[i].split(',').map((p) => p.trim());
+        if (parts.length < 2) continue;
+        const [name, ageStr, gender, phone, address, email] = parts;
+        if (!name) continue;
+
+        patientsToImport.push({
+          name,
+          age: parseInt(ageStr, 10) || undefined,
+          gender: gender || 'Other',
+          phone: phone || '',
+          address: address || undefined,
+          email: email || undefined,
+        });
+      }
+
+      if (patientsToImport.length === 0) {
+        Alert.alert('Invalid CSV', 'Could not parse any valid patient rows from CSV.');
+        return;
+      }
+
+      const res = await receptionistApi.bulkImportPatients(patientsToImport);
+      setShowBulkModal(false);
+      setCsvText('');
+      Alert.alert(
+        'Import Successful ✅',
+        `Successfully imported ${res?.imported_count || patientsToImport.length} patients into central hospital records.`
+      );
+      loadPatients(0);
+    } catch (err: any) {
+      Alert.alert('Bulk Import Failed', getApiErrorMessage(err));
+    } finally {
+      setImporting(false);
+    }
   };
 
   const filteredPatients = patients.filter((p) => {
@@ -116,10 +203,29 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0D9488']} />
         }
       >
-        {/* Title & Subtitle matching Image 9 */}
+        {/* Title & Subtitle with Import CSV action */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>Patient Directory</Text>
-          <Text style={styles.subTitle}>Search and view patient records.</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mainTitle}>Patient Directory</Text>
+              <Text style={styles.subTitle}>Search and view patient records.</Text>
+            </View>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#0D9488',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+              onPress={() => setShowBulkModal(true)}
+              activeOpacity={0.8}
+            >
+              <Feather name="upload" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF' }}>Import CSV</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar & Filter Button matching Image 9 */}
@@ -132,15 +238,20 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              onSubmitEditing={() => loadPatients(0)}
             />
             {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); loadPatients(0); }}>
                 <Ionicons name="close-circle" size={18} color="#94A3B8" />
               </TouchableOpacity>
             ) : null}
           </View>
 
-          <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => loadPatients(0)}
+            activeOpacity={0.8}
+          >
             <Feather name="filter" size={18} color="#0D9488" />
             <Text style={styles.filterBtnText}>Filter</Text>
           </TouchableOpacity>
@@ -148,31 +259,94 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
 
         {/* Patient Cards List matching Image 9 */}
         <View style={styles.patientList}>
-          {filteredPatients.map((patient) => (
-            <TouchableOpacity
-              key={patient.id || patient.uhid}
-              style={styles.patientCard}
-              onPress={() => setSelectedPatient(patient)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={20} color="#0D9488" />
-              </View>
-
-              <View style={styles.patientInfo}>
-                <Text style={styles.patientName} numberOfLines={1}>
-                  {patient.name}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.uhidText}>UHID: {patient.uhid}</Text>
-                  <Text style={styles.dividerDot}>|</Text>
-                  <Text style={styles.phoneText}>📞 {patient.phone}</Text>
+          {filteredPatients.length === 0 ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, marginHorizontal: 16 }}>
+              <Feather name="users" size={32} color="#94A3B8" style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 14, color: '#64748B' }}>No patient records found</Text>
+            </View>
+          ) : (
+            filteredPatients.map((patient) => (
+              <TouchableOpacity
+                key={patient.id || patient.uhid}
+                style={styles.patientCard}
+                onPress={() => setSelectedPatient(patient)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.avatarCircle}>
+                  <Ionicons name="person" size={20} color="#0D9488" />
                 </View>
-              </View>
 
-              <Feather name="chevron-right" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          ))}
+                <View style={styles.patientInfo}>
+                  <Text style={styles.patientName} numberOfLines={1}>
+                    {patient.name}
+                  </Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.uhidText}>UHID: {patient.uhid}</Text>
+                    <Text style={styles.dividerDot}>|</Text>
+                    <Text style={styles.phoneText}>📞 {patient.phone}</Text>
+                  </View>
+                </View>
+
+                <Feather name="chevron-right" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        {/* Pagination Bar */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            marginBottom: 20,
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 8,
+              backgroundColor: page > 0 ? '#FFFFFF' : '#F1F5F9',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+            }}
+            disabled={page === 0}
+            onPress={handlePrevPage}
+          >
+            <Feather name="chevron-left" size={16} color={page > 0 ? '#1E293B' : '#94A3B8'} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: page > 0 ? '#1E293B' : '#94A3B8', marginLeft: 4 }}>
+              Previous
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>
+            Page {page + 1}
+          </Text>
+
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 8,
+              backgroundColor: hasMore ? '#FFFFFF' : '#F1F5F9',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+            }}
+            disabled={!hasMore}
+            onPress={handleNextPage}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '600', color: hasMore ? '#1E293B' : '#94A3B8', marginRight: 4 }}>
+              Next
+            </Text>
+            <Feather name="chevron-right" size={16} color={hasMore ? '#1E293B' : '#94A3B8'} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -244,6 +418,92 @@ export const PatientDirectoryScreen: React.FC<PatientDirectoryScreenProps> = ({
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bulk CSV Import Modal */}
+      <Modal
+        visible={showBulkModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => !importing && setShowBulkModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Bulk Import Patients</Text>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                  CSV Format: Name, Age, Gender, Phone, Address, Email
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => !importing && setShowBulkModal(false)}
+                disabled={importing}
+              >
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569' }}>
+                  Paste CSV Text
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setCsvText(
+                      'Name, Age, Gender, Phone, Address, Email\n' +
+                      'Rohan Patil, 28, Male, 9822011223, Rajarampuri Kolhapur, rohan@example.com\n' +
+                      'Sneha Deshmukh, 34, Female, 9890123456, Tarabai Park Kolhapur, sneha@example.com\n' +
+                      'Anil Kulkarni, 45, Male, 9422334455, Shahupuri Kolhapur, anil@example.com'
+                    );
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0D9488' }}>
+                    + Fill Sample CSV
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={{
+                  height: 160,
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  padding: 12,
+                  fontSize: 12,
+                  fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                  textAlignVertical: 'top',
+                }}
+                value={csvText}
+                onChangeText={setCsvText}
+                placeholder="Name, Age, Gender, Phone, Address, Email..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <TouchableOpacity
+                style={[styles.modalCallBtn, importing && { opacity: 0.7 }]}
+                onPress={handleBulkImport}
+                disabled={importing}
+                activeOpacity={0.8}
+              >
+                {importing ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Feather name="upload-cloud" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.modalCallBtnText}>Import Patients</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

@@ -31,12 +31,12 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
   const { user } = useAuthStore();
   const receptionistName = user?.full_name || 'Priya Sharma';
 
-  // Primary tab: 'today' (Image 23/4) vs 'requests' (Image 20/24)
-  const [activeTab, setActiveTab] = useState<'today' | 'requests'>('today');
+  // Primary tab: 'today' | 'requests' | 'tokens'
+  const [activeTab, setActiveTab] = useState<'today' | 'requests' | 'tokens'>('today');
 
   // Today tab filters & state
   const [todayFilter, setTodayFilter] = useState<'All' | 'Checked In' | 'Waiting' | 'Scheduled' | 'Completed'>('All');
-  const [selectedDate, setSelectedDate] = useState('Today, 06 Oct 2026');
+  const [selectedDate, setSelectedDate] = useState('Today');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Requests tab filters
@@ -45,11 +45,53 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+
+  // Tokens state
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [tokenDoctorFilter, setTokenDoctorFilter] = useState('All');
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [tokenPatientId, setTokenPatientId] = useState('');
+  const [tokenDocId, setTokenDocId] = useState('');
 
   // Modals
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleData, setRescheduleData] = useState({ date: '2026-10-07', time: '11:00 AM' });
+
+  // Cancel with reason modal
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState('Patient requested cancellation');
+
+  // Block Slot modal
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockDoctorId, setBlockDoctorId] = useState('');
+  const [blockDate, setBlockDate] = useState(new Date().toISOString().split('T')[0]);
+  const [blockTime, setBlockTime] = useState('11:00 AM');
+  const [blockReason, setBlockReason] = useState('Doctor in conference / surgery');
+
+  const loadDoctors = async () => {
+    try {
+      const data = await receptionistApi.getDoctors();
+      if (Array.isArray(data) && data.length > 0) {
+        setDoctors(data);
+        if (!blockDoctorId) setBlockDoctorId(data[0].id || data[0]._id || 'doc-chougule');
+        if (!tokenDocId) setTokenDocId(data[0].id || data[0]._id || 'doc-chougule');
+      }
+    } catch (e) {
+      console.warn('Error fetching doctors:', e);
+    }
+  };
+
+  const loadTokens = async () => {
+    try {
+      const data = await receptionistApi.getTokensToday();
+      setTokens(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.warn('Error fetching tokens:', e);
+    }
+  };
 
   const loadAppointments = async () => {
     try {
@@ -66,11 +108,14 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
 
   useEffect(() => {
     loadAppointments();
+    loadDoctors();
+    loadTokens();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadAppointments();
+    loadTokens();
   };
 
   // Actions
@@ -80,13 +125,14 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
       await receptionistApi.updateAppointmentStatus(aptId, 'checked_in');
       let tokenNotice = '';
       try {
-        const tokenRes = await tokenApi.generateToken({
+        const tokenRes = await receptionistApi.generateToken({
           patient_id: item.uhid || item.patient_id || item.patientId || 'patient-1',
           doctor_id: item.doctor_id || item.doctorId || 'doc-chougule',
           appointment_id: aptId,
         });
         if (tokenRes?.token_number) {
           tokenNotice = `\nQueue Token #${tokenRes.token_number} generated.`;
+          loadTokens();
         }
       } catch (tokErr) {
         console.log('Token generation notice:', tokErr);
@@ -114,14 +160,23 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
     }
   };
 
-  const handleCancelAppointment = async (item: any, reason: string = 'Patient cancelled') => {
-    const aptId = item.id || item._id;
+  const openCancelModal = (item: any) => {
+    setCancelTarget(item);
+    setCancelReason('Patient requested cancellation');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    const aptId = cancelTarget.id || cancelTarget._id;
     try {
-      await receptionistApi.cancelAppointment(aptId, reason);
+      await receptionistApi.cancelAppointment(aptId, cancelReason.trim() || 'Patient requested');
       setAppointments((prev) =>
         prev.map((a) => ((a.id || a._id) === aptId ? { ...a, status: 'cancelled' } : a))
       );
-      Alert.alert('Appointment Cancelled', `Appointment for ${item.patient_name || item.patientName} has been cancelled.`);
+      setShowCancelModal(false);
+      setSelectedAppointment(null);
+      Alert.alert('Appointment Cancelled', `Appointment for ${cancelTarget.patient_name || cancelTarget.patientName} has been cancelled.`);
     } catch (e: any) {
       Alert.alert('Cancellation Failed', getApiErrorMessage(e));
     }
@@ -139,7 +194,18 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
   const handleRescheduleSubmit = async () => {
     if (!selectedAppointment) return;
     const aptId = selectedAppointment.id || selectedAppointment._id;
+    const docId = selectedAppointment.doctor_id || selectedAppointment.doctorId || 'doc-chougule';
     try {
+      // Validate booked slots
+      const bookedSlots = await receptionistApi.getBookedSlots(docId, rescheduleData.date);
+      if (Array.isArray(bookedSlots) && bookedSlots.includes(rescheduleData.time)) {
+        Alert.alert(
+          'Slot Unavailable ⚠️',
+          `The slot "${rescheduleData.time}" on ${rescheduleData.date} is already booked or blocked. Please choose an alternative time slot.`
+        );
+        return;
+      }
+
       await receptionistApi.rescheduleAppointment(aptId, rescheduleData);
       setAppointments((prev) =>
         prev.map((a) =>
@@ -158,6 +224,57 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
       Alert.alert('Rescheduled 📅', `New appointment set for ${selectedAppointment.patient_name || selectedAppointment.patientName}.`);
     } catch (e: any) {
       Alert.alert('Reschedule Failed', getApiErrorMessage(e));
+    }
+  };
+
+  const handleBlockSlotSubmit = async () => {
+    if (!blockDoctorId || !blockDate || !blockTime) {
+      Alert.alert('Validation Error', 'Please select a doctor, date, and time slot.');
+      return;
+    }
+    try {
+      await receptionistApi.blockSlot(
+        blockDoctorId,
+        blockDate,
+        blockTime,
+        blockReason.trim() || 'Blocked by reception'
+      );
+      setShowBlockModal(false);
+      Alert.alert('Slot Blocked 🚫', `Slot ${blockTime} on ${blockDate} has been blocked.`);
+      loadAppointments();
+    } catch (e: any) {
+      Alert.alert('Block Slot Failed', getApiErrorMessage(e));
+    }
+  };
+
+  const handleUpdateTokenStatus = async (tokenId: string, newStatus: string) => {
+    try {
+      await receptionistApi.updateTokenStatus(tokenId, newStatus);
+      setTokens((prev) =>
+        prev.map((t) => ((t.id || t._id) === tokenId ? { ...t, status: newStatus } : t))
+      );
+      Alert.alert('Token Updated', `Token status changed to ${newStatus}.`);
+    } catch (e: any) {
+      Alert.alert('Update Failed', getApiErrorMessage(e));
+    }
+  };
+
+  const handleGenerateTokenSubmit = async () => {
+    if (!tokenPatientId.trim() || !tokenDocId) {
+      Alert.alert('Validation', 'Please provide a valid Patient UHID and select a Doctor.');
+      return;
+    }
+    try {
+      const res = await receptionistApi.generateToken({
+        patient_id: tokenPatientId.trim(),
+        doctor_id: tokenDocId,
+      });
+      setShowGenerateModal(false);
+      setTokenPatientId('');
+      Alert.alert('Token Generated 🎫', `Token #${res?.token_number || 'Next'} created.`);
+      loadTokens();
+    } catch (e: any) {
+      Alert.alert('Generation Failed', getApiErrorMessage(e));
     }
   };
 
@@ -251,7 +368,7 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0D9488']} />
         }
       >
-        {/* Top Tab Selector: Today's Appointments vs Appointment Requests */}
+        {/* Top Tab Selector: Today's Appointments vs Appointment Requests vs Queue Tokens */}
         <View style={styles.topTabContainer}>
           <TouchableOpacity
             style={[styles.topTabButton, activeTab === 'today' && styles.activeTopTabButton]}
@@ -260,14 +377,14 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
           >
             <Feather
               name="calendar"
-              size={16}
+              size={15}
               color={activeTab === 'today' ? '#0D9488' : '#64748B'}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 4 }}
             />
             <Text
               style={[styles.topTabText, activeTab === 'today' && styles.activeTopTabText]}
             >
-              Today's Schedule
+              Today
             </Text>
           </TouchableOpacity>
 
@@ -278,14 +395,32 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
           >
             <Feather
               name="clock"
-              size={16}
+              size={15}
               color={activeTab === 'requests' ? '#0D9488' : '#64748B'}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 4 }}
             />
             <Text
               style={[styles.topTabText, activeTab === 'requests' && styles.activeTopTabText]}
             >
               Requests ({pendingCount})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.topTabButton, activeTab === 'tokens' && styles.activeTopTabButton]}
+            onPress={() => setActiveTab('tokens')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons
+              name="ticket-account"
+              size={17}
+              color={activeTab === 'tokens' ? '#0D9488' : '#64748B'}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[styles.topTabText, activeTab === 'tokens' && styles.activeTopTabText]}
+            >
+              Tokens ({tokens.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -296,10 +431,31 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
              ========================================================================= */
           <View>
             <View style={styles.titleSection}>
-              <Text style={styles.mainTitle}>Today's Appointments</Text>
-              <Text style={styles.subTitle}>
-                View and manage today's patient appointments.
-              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mainTitle}>Today's Appointments</Text>
+                  <Text style={styles.subTitle}>
+                    View and manage today's patient appointments.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#FEF2F2',
+                    paddingHorizontal: 10,
+                    paddingVertical: 7,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#FEE2E2',
+                  }}
+                  onPress={() => setShowBlockModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="slash" size={14} color="#DC2626" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#DC2626' }}>Block Slot</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Date Navigator Bar */}
@@ -634,6 +790,14 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
                       >
                         <Feather name="calendar" size={15} color="#475569" />
                       </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.reqActionBtn, { borderColor: '#FEE2E2', backgroundColor: '#FEF2F2' }]}
+                        onPress={() => openCancelModal(req)}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="x" size={15} color="#DC2626" />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -641,11 +805,292 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
             </View>
           </View>
         )}
+
+        {/* TAB 3: LIVE QUEUE TOKENS */}
+        {activeTab === 'tokens' && (
+          <View>
+            <View style={styles.titleSection}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mainTitle}>Live Consultation Queue</Text>
+                  <Text style={styles.subTitle}>
+                    Manage queue tokens and per-doctor patient call workflow.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#0D9488',
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                  }}
+                  onPress={() => setShowGenerateModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="plus-circle" size={15} color="#FFFFFF" style={{ marginRight: 5 }} />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF' }}>New Token</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Doctor Filter Bar */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterPillsRow}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.filterPill,
+                  tokenDoctorFilter === 'All' && styles.activeFilterPill,
+                ]}
+                onPress={() => setTokenDoctorFilter('All')}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    tokenDoctorFilter === 'All' && styles.activeFilterPillText,
+                  ]}
+                >
+                  All Doctors
+                </Text>
+              </TouchableOpacity>
+              {doctors.map((doc) => {
+                const docId = doc.id || doc._id || doc.name;
+                return (
+                  <TouchableOpacity
+                    key={docId}
+                    style={[
+                      styles.filterPill,
+                      tokenDoctorFilter === docId && styles.activeFilterPill,
+                    ]}
+                    onPress={() => setTokenDoctorFilter(docId)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        tokenDoctorFilter === docId && styles.activeFilterPillText,
+                      ]}
+                    >
+                      {doc.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Token Cards List */}
+            <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+              {tokens.filter(
+                (tok) => tokenDoctorFilter === 'All' || tok.doctor_id === tokenDoctorFilter
+              ).length === 0 ? (
+                <View
+                  style={{
+                    paddingVertical: 40,
+                    alignItems: 'center',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#F1F5F9',
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="ticket-outline"
+                    size={32}
+                    color="#94A3B8"
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Text style={{ fontSize: 14, color: '#64748B' }}>
+                    No queue tokens active today
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      marginTop: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      backgroundColor: '#0D9488',
+                      borderRadius: 8,
+                    }}
+                    onPress={() => setShowGenerateModal(true)}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 13 }}>
+                      Generate Token
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                tokens
+                  .filter(
+                    (tok) => tokenDoctorFilter === 'All' || tok.doctor_id === tokenDoctorFilter
+                  )
+                  .map((tok, idx) => {
+                    const statusStr = String(tok.status || 'waiting').toLowerCase();
+                    const isWaiting = statusStr === 'waiting' || statusStr === 'pending';
+                    const isInConsult =
+                      statusStr === 'in_consultation' || statusStr === 'in-consultation';
+                    const isDone = statusStr === 'completed';
+
+                    return (
+                      <View
+                        key={tok.id || tok._id || idx}
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: 12,
+                          padding: 16,
+                          marginBottom: 12,
+                          borderWidth: 1,
+                          borderColor: '#E2E8F0',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          <View
+                            style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 24,
+                              backgroundColor: isInConsult
+                                ? '#FEF3C7'
+                                : isDone
+                                ? '#DCFCE7'
+                                : '#E0F2FE',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: 14,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 18,
+                                fontWeight: '700',
+                                color: isInConsult
+                                  ? '#D97706'
+                                  : isDone
+                                  ? '#15803D'
+                                  : '#0284C7',
+                              }}
+                            >
+                              #{tok.token_number || idx + 1}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}
+                            >
+                              {tok.patient_name || tok.patient_id || 'Patient'}
+                            </Text>
+                            <Text
+                              style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}
+                            >
+                              UHID: {tok.patient_id || tok.uhid || '—'} | Dr:{' '}
+                              {tok.doctor_name || tok.doctor_id || 'Assigned'}
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                marginTop: 6,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 2,
+                                  borderRadius: 4,
+                                  backgroundColor: isInConsult
+                                    ? '#FEF3C7'
+                                    : isDone
+                                    ? '#DCFCE7'
+                                    : '#F1F5F9',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '700',
+                                    color: isInConsult
+                                      ? '#B45309'
+                                      : isDone
+                                      ? '#15803D'
+                                      : '#475569',
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  {tok.status || 'WAITING'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Status update actions */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginLeft: 8,
+                          }}
+                        >
+                          {isWaiting && (
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#0D9488',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 6,
+                              }}
+                              onPress={() =>
+                                handleUpdateTokenStatus(tok.id || tok._id, 'in_consultation')
+                              }
+                            >
+                              <Text
+                                style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}
+                              >
+                                Call In
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {isInConsult && (
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#10B981',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 6,
+                              }}
+                              onPress={() =>
+                                handleUpdateTokenStatus(tok.id || tok._id, 'completed')
+                              }
+                            >
+                              <Text
+                                style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}
+                              >
+                                Complete
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {isDone && (
+                            <View style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+                              <Feather name="check-circle" size={20} color="#10B981" />
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Appointment Detail Modal */}
       <Modal
-        visible={!!selectedAppointment && !showRescheduleModal}
+        visible={!!selectedAppointment && !showRescheduleModal && !showCancelModal}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setSelectedAppointment(null)}
@@ -671,17 +1116,21 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
                 </View>
                 <View style={styles.modalDetailRow}>
                   <Text style={styles.modalLabel}>Doctor</Text>
-                  <Text style={styles.modalValue}>{selectedAppointment.doctor_name || 'Dr. P. M. Chougule'}</Text>
+                  <Text style={styles.modalValue}>{selectedAppointment.doctor_name || 'Assigned Doctor'}</Text>
                 </View>
                 <View style={styles.modalDetailRow}>
                   <Text style={styles.modalLabel}>Department</Text>
-                  <Text style={styles.modalValue}>{selectedAppointment.department || 'General Medicine'}</Text>
+                  <Text style={styles.modalValue}>{selectedAppointment.department || 'Psychiatry'}</Text>
                 </View>
                 <View style={styles.modalDetailRow}>
                   <Text style={styles.modalLabel}>Scheduled Date & Time</Text>
                   <Text style={styles.modalValue}>
                     {selectedAppointment.appointment_date} at {selectedAppointment.appointment_time}
                   </Text>
+                </View>
+                <View style={styles.modalDetailRow}>
+                  <Text style={styles.modalLabel}>Status</Text>
+                  <Text style={[styles.modalValue, { textTransform: 'capitalize' }]}>{selectedAppointment.status || 'Scheduled'}</Text>
                 </View>
                 <View style={styles.modalDetailRow}>
                   <Text style={styles.modalLabel}>Phone Number</Text>
@@ -707,6 +1156,26 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
                   >
                     <Feather name="phone" size={16} color="#0D9488" style={{ marginRight: 6 }} />
                     <Text style={styles.modalCallText}>Call Patient</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalCallBtn, { borderColor: '#0284C7' }]}
+                    onPress={() => {
+                      setShowRescheduleModal(true);
+                    }}
+                  >
+                    <Feather name="calendar" size={16} color="#0284C7" style={{ marginRight: 6 }} />
+                    <Text style={[styles.modalCallText, { color: '#0284C7' }]}>Reschedule</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalCallBtn, { borderColor: '#DC2626' }]}
+                    onPress={() => {
+                      const apt = selectedAppointment;
+                      setSelectedAppointment(null);
+                      openCancelModal(apt);
+                    }}
+                  >
+                    <Feather name="x-circle" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                    <Text style={[styles.modalCallText, { color: '#DC2626' }]}>Cancel</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -753,6 +1222,156 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
                 onPress={handleRescheduleSubmit}
               >
                 <Text style={styles.modalBtnText}>Confirm Reschedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Appointment Modal with Reason */}
+      <Modal
+        visible={showCancelModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCancelModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#DC2626' }]}>Cancel Appointment</Text>
+              <TouchableOpacity onPress={() => setShowCancelModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={{ fontSize: 14, color: '#475569', marginBottom: 12 }}>
+                Please specify the reason for cancelling the appointment for{' '}
+                <Text style={{ fontWeight: '700' }}>
+                  {cancelTarget?.patient_name || cancelTarget?.patientName || 'this patient'}
+                </Text>
+                :
+              </Text>
+
+              <Text style={styles.formLabel}>Cancellation Reason *</Text>
+              <TextInput
+                style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]}
+                value={cancelReason}
+                onChangeText={setCancelReason}
+                multiline
+                placeholder="e.g. Patient requested, Doctor unavailable, Duplicate booking"
+              />
+
+              <TouchableOpacity
+                style={[styles.confirmRescheduleBtn, { backgroundColor: '#DC2626' }]}
+                onPress={handleConfirmCancel}
+              >
+                <Text style={styles.modalBtnText}>Confirm Cancellation</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Block Slot Modal */}
+      <Modal
+        visible={showBlockModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBlockModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Block Doctor Slot</Text>
+              <TouchableOpacity onPress={() => setShowBlockModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.formLabel}>Doctor ID / Name *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={blockDoctorId}
+                onChangeText={setBlockDoctorId}
+                placeholder="doc-chougule"
+              />
+
+              <Text style={[styles.formLabel, { marginTop: 12 }]}>Date (YYYY-MM-DD) *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={blockDate}
+                onChangeText={setBlockDate}
+                placeholder="2026-10-06"
+              />
+
+              <Text style={[styles.formLabel, { marginTop: 12 }]}>Time Slot *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={blockTime}
+                onChangeText={setBlockTime}
+                placeholder="10:00 AM"
+              />
+
+              <Text style={[styles.formLabel, { marginTop: 12 }]}>Reason *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={blockReason}
+                onChangeText={setBlockReason}
+                placeholder="Emergency rounds / surgery"
+              />
+
+              <TouchableOpacity
+                style={[styles.confirmRescheduleBtn, { backgroundColor: '#DC2626' }]}
+                onPress={handleBlockSlotSubmit}
+              >
+                <Text style={styles.modalBtnText}>Confirm Block Slot</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Generate Queue Token Modal */}
+      <Modal
+        visible={showGenerateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowGenerateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Generate Queue Token</Text>
+              <TouchableOpacity onPress={() => setShowGenerateModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.formLabel}>Patient UHID *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={tokenPatientId}
+                onChangeText={setTokenPatientId}
+                placeholder="e.g. SWH-2026-0001"
+                autoCapitalize="characters"
+              />
+
+              <Text style={[styles.formLabel, { marginTop: 12 }]}>Doctor ID *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={tokenDocId}
+                onChangeText={setTokenDocId}
+                placeholder="doc-chougule"
+              />
+
+              <TouchableOpacity
+                style={styles.confirmRescheduleBtn}
+                onPress={handleGenerateTokenSubmit}
+              >
+                <Text style={styles.modalBtnText}>Issue Token</Text>
               </TouchableOpacity>
             </View>
           </View>

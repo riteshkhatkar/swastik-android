@@ -138,7 +138,6 @@ export const PatientRegistrationScreen: React.FC<PatientRegistrationScreenProps>
   const handleCompleteRegistration = async () => {
     setLoading(true);
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const generatedUHID = `SHD${Math.floor(100000 + Math.random() * 900000)}`;
 
     const payload = {
       name: fullName,
@@ -164,6 +163,65 @@ export const PatientRegistrationScreen: React.FC<PatientRegistrationScreenProps>
         throw new Error('Server registered patient but did not return a valid UHID.');
       }
 
+      // Match selected doctor to ID
+      const matchedDoctor = doctors.find((d) => d.name === selectedDoctor);
+      const doctorId = matchedDoctor?.id || matchedDoctor?._id || 'doc-chougule';
+
+      // 1. Auto-create appointment
+      let appointmentRes: any = null;
+      try {
+        appointmentRes = await receptionistApi.createAppointment({
+          uhid: actualUHID,
+          patient_name: fullName,
+          doctor_id: doctorId,
+          appointment_date: new Date().toISOString().split('T')[0],
+          appointment_time: '10:00 AM',
+          type: visitType === 'OPD' ? 'OPD Consultation' : 'General Admission',
+          notes: 'Auto-booked during patient registration',
+        });
+      } catch (aptErr) {
+        console.log('Auto appointment note:', aptErr);
+      }
+
+      // 2. Auto-generate queue token
+      let tokenRes: any = null;
+      try {
+        tokenRes = await receptionistApi.generateToken({
+          patient_id: actualUHID,
+          doctor_id: doctorId,
+          appointment_id: appointmentRes?.id || appointmentRes?._id,
+        });
+      } catch (tokErr) {
+        console.log('Auto token note:', tokErr);
+      }
+
+      // 3. Register OPD visit if OPD
+      if (visitType === 'OPD') {
+        try {
+          await receptionistApi.createOPD({
+            uhid: actualUHID,
+            patient_name: fullName,
+            department,
+            doctor_id: doctorId,
+            visit_type: 'OPD',
+            notes: remarks || undefined,
+          });
+        } catch (opdErr) {
+          console.log('Auto OPD note:', opdErr);
+        }
+      }
+
+      // 4. Retrieve initial bill / registration receipt
+      let initialBill = res?.initial_bill || null;
+      if (!initialBill) {
+        try {
+          const bills = await receptionistApi.getBillsByPatient(actualUHID);
+          if (Array.isArray(bills) && bills.length > 0) {
+            initialBill = bills[0];
+          }
+        } catch (_) {}
+      }
+
       setRegisteredPatient({
         name: fullName,
         uhid: actualUHID,
@@ -179,8 +237,10 @@ export const PatientRegistrationScreen: React.FC<PatientRegistrationScreenProps>
           hour: '2-digit',
           minute: '2-digit',
         }),
-        amount: res?.initial_bill?.total || 500,
+        amount: initialBill?.total || res?.initial_bill?.total || 500,
         paymentMode: paymentCategory,
+        tokenNumber: tokenRes?.token_number || null,
+        invoiceNumber: initialBill?.invoice_number || null,
       });
 
       setStep('success');
@@ -1007,6 +1067,22 @@ export const PatientRegistrationScreen: React.FC<PatientRegistrationScreenProps>
                   <Text style={styles.successItemVal}>{registeredPatient.regDateTime}</Text>
                 </View>
               </View>
+
+              {/* Row: Queue Token Number if generated */}
+              {registeredPatient.tokenNumber && (
+                <View style={styles.successItem}>
+                  <View style={[styles.successItemIconBox, { backgroundColor: '#E0F2FE' }]}>
+                    <MaterialCommunityIcons name="ticket-account" size={20} color="#0284C7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.successItemLabel}>Live Queue Token</Text>
+                    <Text style={[styles.successItemValBold, { color: '#0284C7', fontSize: 16 }]}>
+                      Token #{registeredPatient.tokenNumber}
+                    </Text>
+                    <Text style={styles.successItemSubVal}>Entered in doctor consultation queue</Text>
+                  </View>
+                </View>
+              )}
 
               {/* Row 6: Billing Summary */}
               <View style={styles.successItem}>

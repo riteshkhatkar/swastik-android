@@ -30,81 +30,55 @@ export const ReceptionistNotificationsScreen: React.FC<ReceptionistNotifications
   const receptionistName = user?.full_name || 'Priya Sharma';
 
   const [activeTab, setActiveTab] = useState<'All' | 'Unread' | 'Important'>('All');
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Notifications List matching Image 15
-  const [notifications, setNotifications] = useState<any[]>([
-    {
-      id: '1',
-      title: "Today's Appointments",
-      description: 'You have 6 appointments scheduled today. First appointment at 09:00 AM.',
-      time: '10 min ago',
-      iconType: 'calendar',
-      isUnread: true,
-      badge: null,
-      module: 'Appointments',
-    },
-    {
-      id: '2',
-      title: 'New Patient Registration',
-      description: 'A new patient registration is pending review and completion.',
-      time: '25 min ago',
-      iconType: 'user-plus',
-      isUnread: true,
-      badge: { label: 'Important', type: 'important' },
-      module: 'NewRegistration',
-    },
-    {
-      id: '3',
-      title: 'Admission Created',
-      description: 'Admission for Virat Kohli has been created successfully (IPD-2024-0007).',
-      time: '1 hour ago',
-      iconType: 'file-text',
-      isUnread: false,
-      badge: { label: 'Success', type: 'success' },
-      module: 'Admission',
-    },
-    {
-      id: '4',
-      title: 'Payment Pending',
-      description: '₹600.00 payment is pending for UHID: SWASTIK-2024-0005.',
-      time: '2 hours ago',
-      iconType: 'credit-card',
-      isUnread: true,
-      badge: { label: 'Payment Due', type: 'warning' },
-      module: 'Billing',
-    },
-    {
-      id: '5',
-      title: 'Lab Report Ready',
-      description: 'Lab report for Rohit Sharma is now available. (LBR-2024-0012)',
-      time: '3 hours ago',
-      iconType: 'flask',
-      isUnread: false,
-      badge: null,
-      module: 'PatientSearch',
-    },
-    {
-      id: '6',
-      title: 'Follow-up Reminder',
-      description: 'A follow-up is due for Atharva Bembane tomorrow (10 Oct 2024).',
-      time: '5 hours ago',
-      iconType: 'calendar-check',
-      isUnread: false,
-      badge: { label: 'Reminder', type: 'info' },
-      module: 'Appointments',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const loadNotifications = async () => {
     try {
-      const data = await receptionistApi.getNotifications();
-      if (Array.isArray(data) && data.length > 0) {
-        setNotifications(data);
+      setLoading(true);
+      const data = await receptionistApi.getNotifications('receptionist');
+      if (Array.isArray(data)) {
+        const mapped = data.map((d: any, idx: number) => {
+          const isRead = d.read === true || d.is_read === true || d.isUnread === false;
+          const priority = (d.priority || d.type || '').toLowerCase();
+          let badge = null;
+          if (priority === 'critical' || priority === 'urgent' || priority === 'important') {
+            badge = { label: 'Important', type: 'important' };
+          } else if (priority === 'warning' || priority === 'payment') {
+            badge = { label: 'Action Required', type: 'warning' };
+          } else if (priority === 'success' || priority === 'completed') {
+            badge = { label: 'Success', type: 'success' };
+          } else if (priority === 'info' || priority === 'reminder') {
+            badge = { label: 'Info', type: 'info' };
+          }
+
+          let iconType = 'calendar';
+          if (d.type === 'patient' || d.type === 'registration') iconType = 'user-plus';
+          else if (d.type === 'admission' || d.type === 'ipd') iconType = 'file-text';
+          else if (d.type === 'billing' || d.type === 'payment') iconType = 'credit-card';
+          else if (d.type === 'lab') iconType = 'flask';
+
+          return {
+            id: String(d.id || d._id || idx),
+            title: d.title || 'Front-Desk Notification',
+            description: d.message || d.description || '',
+            time: d.created_at
+              ? new Date(d.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+              : 'Today',
+            iconType,
+            isUnread: !isRead,
+            badge,
+            module: d.module || (d.type === 'billing' ? 'Billing' : d.type === 'admission' ? 'Admission' : 'Appointments'),
+            raw: d,
+          };
+        });
+        setNotifications(mapped);
       }
-    } catch {
-      // baseline preserved
+    } catch (e) {
+      console.warn('Error loading notifications:', e);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -118,15 +92,30 @@ export const ReceptionistNotificationsScreen: React.FC<ReceptionistNotifications
     loadNotifications();
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false })));
-    Alert.alert('Marked as Read', 'All front-desk notifications marked as read.');
+  const handleMarkAllRead = async () => {
+    const unread = notifications.filter((n) => n.isUnread);
+    try {
+      await Promise.all(
+        unread.map((n) => receptionistApi.markNotificationRead(n.id).catch(() => null))
+      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false })));
+      Alert.alert('Marked as Read', 'All front-desk notifications marked as read.');
+    } catch {
+      Alert.alert('Notice', 'Could not sync all reads to backend.');
+    }
   };
 
-  const handleNotificationPress = (item: any) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isUnread: false } : n))
-    );
+  const handleNotificationPress = async (item: any) => {
+    if (item.isUnread && item.id) {
+      try {
+        await receptionistApi.markNotificationRead(item.id);
+      } catch (e) {
+        console.log('Mark read notice:', e);
+      }
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isUnread: false } : n))
+      );
+    }
     if (onNavigateToModule && item.module) {
       onNavigateToModule(item.module);
     } else {
@@ -240,25 +229,31 @@ export const ReceptionistNotificationsScreen: React.FC<ReceptionistNotifications
 
         {/* Notification Cards List matching Image 15 */}
         <View style={styles.notificationsList}>
-          {filteredNotifications.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.notificationCard}
-              onPress={() => handleNotificationPress(item)}
-              activeOpacity={0.75}
-            >
-              {/* Category Icon */}
-              <View style={styles.notifIconCircle}>{renderIcon(item.iconType)}</View>
+          {filteredNotifications.length === 0 ? (
+            <View style={{ paddingVertical: 45, alignItems: 'center' }}>
+              <Feather name="bell-off" size={32} color="#94A3B8" style={{ marginBottom: 10 }} />
+              <Text style={{ fontSize: 14, color: '#64748B' }}>No notifications found</Text>
+            </View>
+          ) : (
+            filteredNotifications.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.notificationCard}
+                onPress={() => handleNotificationPress(item)}
+                activeOpacity={0.75}
+              >
+                {/* Category Icon */}
+                <View style={styles.notifIconCircle}>{renderIcon(item.iconType)}</View>
 
-              {/* Main Content */}
-              <View style={styles.notifContent}>
-                <Text style={styles.notifTitle}>{item.title}</Text>
-                <Text style={styles.notifDesc}>{item.description}</Text>
-                <View style={styles.notifMetaRow}>
-                  <Feather name="clock" size={12} color="#94A3B8" style={{ marginRight: 4 }} />
-                  <Text style={styles.notifTime}>{item.time}</Text>
+                {/* Main Content */}
+                <View style={styles.notifContent}>
+                  <Text style={styles.notifTitle}>{item.title}</Text>
+                  <Text style={styles.notifDesc}>{item.description}</Text>
+                  <View style={styles.notifMetaRow}>
+                    <Feather name="clock" size={12} color="#94A3B8" style={{ marginRight: 4 }} />
+                    <Text style={styles.notifTime}>{item.time}</Text>
+                  </View>
                 </View>
-              </View>
 
               {/* Right Badges & Indicators */}
               <View style={styles.notifRightCol}>
@@ -292,8 +287,9 @@ export const ReceptionistNotificationsScreen: React.FC<ReceptionistNotifications
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          ))
+        )}
+      </View>
       </ScrollView>
     </View>
   );

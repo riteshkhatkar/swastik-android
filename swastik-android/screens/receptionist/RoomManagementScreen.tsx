@@ -74,13 +74,14 @@ export const RoomManagementScreen: React.FC<RoomManagementScreenProps> = ({ onOp
 
   const handleSaveStatus = async () => {
     if (!selectedRoom) return;
+    const targetRoomId = selectedRoom._id || selectedRoom.id || selectedRoom.room_id;
     try {
-      if (selectedRoom._id) {
-        await roomApi.updateRoomStatus(selectedRoom._id, newStatus);
+      if (targetRoomId) {
+        await roomApi.updateRoomStatus(targetRoomId, newStatus);
       }
       setRooms((prev) =>
         prev.map((r) =>
-          (r._id && r._id === selectedRoom._id) || r.room_number === selectedRoom.room_number
+          ((r._id && r._id === targetRoomId) || (r.id && r.id === targetRoomId) || r.room_number === selectedRoom.room_number)
             ? { ...r, status: newStatus }
             : r
         )

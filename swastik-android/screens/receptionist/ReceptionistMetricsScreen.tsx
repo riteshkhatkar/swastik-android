@@ -1,5 +1,5 @@
 // swastik-android/screens/receptionist/ReceptionistMetricsScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,13 @@ import {
   Image,
   Alert,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { receptionistApi } from '../../services/api';
 
 interface ReceptionistMetricsScreenProps {
   onOpenDrawer: () => void;
@@ -27,6 +30,84 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
   const { user } = useAuthStore();
   const receptionistName = user?.full_name || 'Priya Sharma';
 
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [metrics, setMetrics] = useState({
+    newRegistrations: 0,
+    walkIns: 0,
+    followUps: 0,
+    criticalAlerts: 0,
+    averageWaitTime: '15 min',
+    emergencyEscalations: 0,
+  });
+  const [crisisAlerts, setCrisisAlerts] = useState<any[]>([]);
+
+  const loadMetrics = async () => {
+    try {
+      setLoading(true);
+      const [countsData, appointmentsData, admissionsData, notifsData] = await Promise.all([
+        receptionistApi.getDashboardCounts().catch(() => null),
+        receptionistApi.getAppointments().catch(() => []),
+        receptionistApi.getAdmissions().catch(() => []),
+        receptionistApi.getNotifications('receptionist').catch(() => []),
+      ]);
+
+      const aptList = Array.isArray(appointmentsData) ? appointmentsData : [];
+      const admList = Array.isArray(admissionsData) ? admissionsData : [];
+      const notifList = Array.isArray(notifsData) ? notifsData : [];
+
+      const walkIns = aptList.filter(
+        (a) => !a.appointment_date || a.type === 'Walk-in' || a.visit_type === 'OPD'
+      ).length;
+      const followUps = aptList.filter(
+        (a) => a.type === 'Follow-up' || a.visit_type === 'Follow-up'
+      ).length;
+      const criticalAdmissions = admList.filter(
+        (a) => a.clinical_status === 'Critical' || a.admission_type === 'Emergency'
+      ).length;
+      const criticalNotifs = notifList.filter(
+        (n) =>
+          n.priority === 'high' ||
+          n.priority === 'critical' ||
+          n.badge?.type === 'important' ||
+          n.type === 'emergency'
+      );
+
+      setMetrics({
+        newRegistrations: countsData?.patients ?? 0,
+        walkIns: walkIns,
+        followUps: followUps,
+        criticalAlerts: criticalNotifs.length + criticalAdmissions,
+        averageWaitTime: aptList.length > 5 ? '20 min' : '10 min',
+        emergencyEscalations: criticalAdmissions,
+      });
+
+      const alerts = notifList.filter(
+        (n) =>
+          n.priority === 'high' ||
+          n.priority === 'critical' ||
+          n.badge?.type === 'important' ||
+          (n.title && n.title.toLowerCase().includes('alert')) ||
+          (n.title && n.title.toLowerCase().includes('emergency'))
+      );
+      setCrisisAlerts(alerts.length > 0 ? alerts : notifList.slice(0, 3));
+    } catch (e) {
+      console.warn('Failed to load receptionist metrics:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMetrics();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadMetrics();
+  };
+
   return (
     <View style={styles.container}>
       {/* Global Header */}
@@ -36,7 +117,6 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
           { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 12 : 20) },
         ]}
       >
-
         <View style={styles.topRow}>
           <TouchableOpacity
             onPress={onOpenDrawer}
@@ -70,8 +150,11 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0D9488']} />
+        }
       >
-        {/* Title Section matching Image 21 */}
+        {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>Daily Patient Metrics</Text>
           <Text style={styles.subTitle}>
@@ -79,7 +162,7 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
           </Text>
         </View>
 
-        {/* 6 Metric Cards Grid matching Image 21 */}
+        {/* 6 Metric Cards Grid with live data */}
         <View style={styles.metricsGrid}>
           {/* Card 1: New Registrations */}
           <View style={styles.metricCard}>
@@ -89,10 +172,10 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={styles.cardTitle}>New Registrations</Text>
-            <Text style={styles.cardValue}>6</Text>
+            <Text style={styles.cardValue}>{metrics.newRegistrations}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-up" size={14} color="#059669" />
-              <Text style={styles.trendTextPositive}>+20% vs. yesterday</Text>
+              <Feather name="activity" size={14} color="#059669" />
+              <Text style={styles.trendTextPositive}>Live from Central Records</Text>
             </View>
           </View>
 
@@ -104,10 +187,10 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={styles.cardTitle}>Walk-ins</Text>
-            <Text style={styles.cardValue}>12</Text>
+            <Text style={styles.cardValue}>{metrics.walkIns}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-up" size={14} color="#059669" />
-              <Text style={styles.trendTextPositive}>+33% vs. yesterday</Text>
+              <Feather name="users" size={14} color="#059669" />
+              <Text style={styles.trendTextPositive}>Today's Front Desk</Text>
             </View>
           </View>
 
@@ -119,10 +202,10 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={styles.cardTitle}>Follow-ups</Text>
-            <Text style={styles.cardValue}>8</Text>
+            <Text style={styles.cardValue}>{metrics.followUps}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-up" size={14} color="#059669" />
-              <Text style={styles.trendTextPositive}>+14% vs. yesterday</Text>
+              <Feather name="calendar" size={14} color="#059669" />
+              <Text style={styles.trendTextPositive}>Scheduled Visits</Text>
             </View>
           </View>
 
@@ -134,10 +217,10 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={[styles.cardTitle, { color: '#991B1B' }]}>Critical Alerts</Text>
-            <Text style={[styles.cardValue, { color: '#DC2626' }]}>3</Text>
+            <Text style={[styles.cardValue, { color: '#DC2626' }]}>{metrics.criticalAlerts}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-up" size={14} color="#DC2626" />
-              <Text style={styles.trendTextNegative}>+200% vs. yesterday</Text>
+              <Feather name="shield" size={14} color="#DC2626" />
+              <Text style={styles.trendTextNegative}>Active Hospital Escalations</Text>
             </View>
           </View>
 
@@ -149,10 +232,10 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={styles.cardTitle}>Average Wait Time</Text>
-            <Text style={styles.cardValue}>18 min</Text>
+            <Text style={styles.cardValue}>{metrics.averageWaitTime}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-down" size={14} color="#059669" />
-              <Text style={styles.trendTextPositive}>-25% vs. yesterday</Text>
+              <Feather name="check" size={14} color="#059669" />
+              <Text style={styles.trendTextPositive}>Queue Target: &lt; 30m</Text>
             </View>
           </View>
 
@@ -164,15 +247,15 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
               </View>
             </View>
             <Text style={styles.cardTitle}>Emergency Escalations</Text>
-            <Text style={styles.cardValue}>2</Text>
+            <Text style={styles.cardValue}>{metrics.emergencyEscalations}</Text>
             <View style={styles.trendRow}>
-              <Feather name="trending-up" size={14} color="#D97706" />
-              <Text style={[styles.trendTextPositive, { color: '#D97706' }]}>+100% vs. yesterday</Text>
+              <Feather name="activity" size={14} color="#D97706" />
+              <Text style={[styles.trendTextPositive, { color: '#D97706' }]}>Emergency Inpatients</Text>
             </View>
           </View>
         </View>
 
-        {/* Crisis Management Section matching Image 21 */}
+        {/* Crisis Management Section with live alerts */}
         <View style={styles.crisisSection}>
           <View style={styles.crisisHeaderRow}>
             <View style={styles.crisisHeaderLeft}>
@@ -188,97 +271,109 @@ export const ReceptionistMetricsScreen: React.FC<ReceptionistMetricsScreenProps>
             </View>
             <TouchableOpacity
               style={styles.crisisViewAllBtn}
-              onPress={() => Alert.alert('Crisis Management', 'Viewing all 3 active front-desk alerts.')}
+              onPress={() => {
+                if (onNavigateToModule) {
+                  onNavigateToModule('Notifications');
+                } else {
+                  Alert.alert('Crisis Alerts', `Viewing ${crisisAlerts.length} active front-desk alerts.`);
+                }
+              }}
             >
-              <Text style={styles.crisisViewAllText}>View All (3)</Text>
+              <Text style={styles.crisisViewAllText}>View All ({crisisAlerts.length})</Text>
               <Feather name="chevron-right" size={14} color="#DC2626" />
             </TouchableOpacity>
           </View>
 
-          {/* Alert Item 1: Psychiatric Crisis */}
-          <TouchableOpacity
-            style={[styles.alertCard, styles.alertCardRed]}
-            onPress={() => {
-              Alert.alert(
-                'Psychiatric Crisis Alert 🚨',
-                'Patient in acute distress at OPD triage. Psychiatry emergency team Dr. P. M. Chougule notified.'
-              );
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.alertIconCircle, { backgroundColor: '#FEE2E2' }]}>
-              <MaterialCommunityIcons name="brain" size={20} color="#DC2626" />
+          {crisisAlerts.length === 0 ? (
+            <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+              <Feather name="check-circle" size={26} color="#10B981" style={{ marginBottom: 6 }} />
+              <Text style={{ fontSize: 14, color: '#64748B' }}>No active crisis alerts at this time</Text>
             </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Psychiatric Crisis</Text>
-              <Text style={styles.alertDesc}>
-                Patient showing signs of acute distress. Requires immediate assessment.
-              </Text>
-              <Text style={styles.alertTime}>10:30 AM</Text>
-            </View>
-            <View style={styles.alertRight}>
-              <View style={[styles.alertBadge, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={[styles.alertBadgeText, { color: '#DC2626' }]}>HIGH</Text>
-              </View>
-              <Feather name="chevron-right" size={16} color="#94A3B8" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Alert Item 2: Emergency Bed Request */}
-          <TouchableOpacity
-            style={[styles.alertCard, styles.alertCardAmber]}
-            onPress={() => {
-              if (onNavigateToModule) {
-                onNavigateToModule('Admission');
-              } else {
-                Alert.alert('Emergency Bed Request', 'Directing to Ward / Bed allocation.');
-              }
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.alertIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <MaterialCommunityIcons name="bed" size={20} color="#D97706" />
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Emergency Bed Request</Text>
-              <Text style={styles.alertDesc}>
-                ER patient requires immediate ward allocation.
-              </Text>
-              <Text style={styles.alertTime}>09:45 AM</Text>
-            </View>
-            <View style={styles.alertRight}>
-              <View style={[styles.alertBadge, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={[styles.alertBadgeText, { color: '#D97706' }]}>MEDIUM</Text>
-              </View>
-              <Feather name="chevron-right" size={16} color="#94A3B8" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Alert Item 3: Doctor Not Available */}
-          <TouchableOpacity
-            style={[styles.alertCard, styles.alertCardBlue]}
-            onPress={() => {
-              Alert.alert('Doctor Schedule Alert', 'Dr. P. M. Chougule is in emergency rounds. Pending appointments notified.');
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.alertIconCircle, { backgroundColor: '#E0F2FE' }]}>
-              <Feather name="user-x" size={20} color="#0284C7" />
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Doctor Not Available</Text>
-              <Text style={styles.alertDesc}>
-                Dr. P. M. Chougule is currently out of office. Reassign pending consultations.
-              </Text>
-              <Text style={styles.alertTime}>09:20 AM</Text>
-            </View>
-            <View style={styles.alertRight}>
-              <View style={[styles.alertBadge, { backgroundColor: '#E0F2FE' }]}>
-                <Text style={[styles.alertBadgeText, { color: '#0284C7' }]}>INFO</Text>
-              </View>
-              <Feather name="chevron-right" size={16} color="#94A3B8" />
-            </View>
-          </TouchableOpacity>
+          ) : (
+            crisisAlerts.map((alert, idx) => (
+              <TouchableOpacity
+                key={alert.id || alert._id || idx}
+                style={[
+                  styles.alertCard,
+                  alert.priority === 'critical' || alert.type === 'emergency'
+                    ? styles.alertCardRed
+                    : styles.alertCardAmber,
+                ]}
+                onPress={() => {
+                  if (alert.module && onNavigateToModule) {
+                    onNavigateToModule(alert.module);
+                  } else {
+                    Alert.alert(alert.title || 'Front-Desk Alert', alert.message || alert.description || 'Details unavailable');
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.alertIconCircle,
+                    {
+                      backgroundColor:
+                        alert.priority === 'critical' || alert.type === 'emergency'
+                          ? '#FEE2E2'
+                          : '#FEF3C7',
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={alert.iconType === 'bed' ? 'bed' : 'alert-circle'}
+                    size={20}
+                    color={
+                      alert.priority === 'critical' || alert.type === 'emergency'
+                        ? '#DC2626'
+                        : '#D97706'
+                    }
+                  />
+                </View>
+                <View style={styles.alertContent}>
+                  <Text style={styles.alertTitle}>{alert.title || 'Front-Desk Alert'}</Text>
+                  <Text style={styles.alertDesc} numberOfLines={2}>
+                    {alert.message || alert.description || 'Action required.'}
+                  </Text>
+                  <Text style={styles.alertTime}>
+                    {alert.created_at
+                      ? new Date(alert.created_at).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Live'}
+                  </Text>
+                </View>
+                <View style={styles.alertRight}>
+                  <View
+                    style={[
+                      styles.alertBadge,
+                      {
+                        backgroundColor:
+                          alert.priority === 'critical' || alert.type === 'emergency'
+                            ? '#FEE2E2'
+                            : '#FEF3C7',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.alertBadgeText,
+                        {
+                          color:
+                            alert.priority === 'critical' || alert.type === 'emergency'
+                              ? '#DC2626'
+                              : '#D97706',
+                        },
+                      ]}
+                    >
+                      {alert.badge?.label || alert.priority?.toUpperCase() || 'HIGH'}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color="#94A3B8" />
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
     </View>

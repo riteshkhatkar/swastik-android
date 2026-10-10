@@ -1244,6 +1244,7 @@ export const notificationApi = notificationService;
 export const receptionistApi = {
   getDashboardCounts: appointmentService.getDashboardCounts,
   getAppointments: appointmentService.getAppointments,
+  createAppointment: appointmentService.createAppointment,
   updateAppointmentStatus: appointmentService.updateAppointmentStatus,
   rescheduleAppointment: appointmentService.rescheduleAppointment,
   cancelAppointment: appointmentService.cancelAppointment,
@@ -1272,10 +1273,17 @@ export const receptionistApi = {
 
   getRooms: roomService.getRooms,
   createRoom: roomService.createRoom,
+  updateRoomStatus: roomService.updateRoomStatus,
 
   getBills: billingService.getBills,
+  getBillsByPatient: billingService.getBillsByPatient,
   createBill: billingService.createBill,
   addBillPayment: billingService.addBillPayment,
+
+  generateToken: tokenService.generateToken,
+  getTokensToday: tokenService.getTokensToday,
+  getTokensByDoctor: tokenService.getTokensByDoctor,
+  updateTokenStatus: tokenService.updateTokenStatus,
 
   getNotifications: notificationService.getNotifications,
   markNotificationRead: notificationService.markNotificationRead,

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { receptionistApi } from '../../services/api';
+import { receptionistApi, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { printOrSharePdf } from '../../utils/pdfGenerator';
 
@@ -33,22 +33,42 @@ export const SearchUHIDScreen: React.FC<SearchUHIDScreenProps> = ({ onOpenDrawer
   const [loading, setLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
 
-  useEffect(() => {
+  const loadPatients = async () => {
     setLoading(true);
-    receptionistApi
-      .getPatients()
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setPatients(data);
-        }
-      })
-      .catch((e) => {
-        console.warn('Error fetching patients in SearchUHID:', e);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    try {
+      const data = await receptionistApi.getPatients(0, 100);
+      if (Array.isArray(data)) {
+        setPatients(data);
+      }
+    } catch (e: any) {
+      console.warn('Error fetching patients in SearchUHID:', e);
+      Alert.alert('Notice', getApiErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPatients();
   }, []);
+
+  const handleDirectLookup = async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setLoading(true);
+    try {
+      const res = await receptionistApi.getPatientByUhid(q);
+      if (res && res.uhid) {
+        setSelectedPatient(res);
+      } else {
+        Alert.alert('Patient Not Found', `No patient record found for "${q}". Please check the UHID.`);
+      }
+    } catch (err: any) {
+      Alert.alert('UHID Lookup Failed', getApiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPatients = patients.filter((p) => {
     if (!searchQuery) return true;
@@ -125,6 +145,8 @@ export const SearchUHIDScreen: React.FC<SearchUHIDScreenProps> = ({ onOpenDrawer
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              onSubmitEditing={handleDirectLookup}
+              returnKeyType="search"
             />
             {searchQuery ? (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -133,8 +155,12 @@ export const SearchUHIDScreen: React.FC<SearchUHIDScreenProps> = ({ onOpenDrawer
             ) : null}
           </View>
 
-          <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8}>
-            <Feather name="filter" size={18} color="#0D9488" />
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={handleDirectLookup}
+            activeOpacity={0.8}
+          >
+            <Feather name="search" size={18} color="#0D9488" />
           </TouchableOpacity>
         </View>
 

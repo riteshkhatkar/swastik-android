@@ -35,18 +35,18 @@ export const ReceptionistDashboardScreen: React.FC<ReceptionistDashboardScreenPr
 
   // Live state
   const [counts, setCounts] = useState({
-    registrations: 6,
-    appointments: 12,
-    waitingQueue: 8,
-    inConsultation: 5,
+    registrations: 0,
+    appointments: 0,
+    waitingQueue: 0,
+    inConsultation: 0,
   });
 
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [inpatientStats, setInpatientStats] = useState({
-    total: 6,
-    icu: 2,
-    ward: 3,
-    critical: 1,
+    total: 0,
+    icu: 0,
+    ward: 0,
+    critical: 0,
   });
 
   const loadData = async () => {
@@ -306,31 +306,37 @@ export const ReceptionistDashboardScreen: React.FC<ReceptionistDashboardScreenPr
           </View>
 
           {/* Table Rows */}
-          {pendingRequests.map((item, idx) => (
-            <TouchableOpacity
-              key={item.id || idx}
-              style={styles.tableRow}
-              onPress={() => onNavigate('Appointments')}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.tdBold, { flex: 2 }]} numberOfLines={1}>
-                {item.patient_name || item.name || 'Patient'}
-              </Text>
-              <Text style={[styles.tdText, { flex: 2 }]} numberOfLines={1}>
-                {item.doctor_name || 'Dr. P. M. Chougule'}
-              </Text>
-              <Text style={[styles.tdMuted, { flex: 2 }]} numberOfLines={1}>
-                {item.appointment_date || '2026-10-06'}{' '}
-                {item.appointment_time || item.time || '10:00 AM'}
-              </Text>
-              <View style={[styles.statusCell, { flex: 1.5 }]}>
-                <View style={styles.pendingBadge}>
-                  <Text style={styles.pendingBadgeText}>PENDING</Text>
+          {pendingRequests.length === 0 ? (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <Feather name="check-circle" size={24} color="#94A3B8" style={{ marginBottom: 6 }} />
+              <Text style={{ fontSize: 13, color: '#64748B' }}>No pending appointment requests</Text>
+            </View>
+          ) : (
+            pendingRequests.map((item, idx) => (
+              <TouchableOpacity
+                key={item.id || idx}
+                style={styles.tableRow}
+                onPress={() => onNavigate('Appointments')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tdBold, { flex: 2 }]} numberOfLines={1}>
+                  {item.patient_name || item.name || 'Patient'}
+                </Text>
+                <Text style={[styles.tdText, { flex: 2 }]} numberOfLines={1}>
+                  {item.doctor_name || 'Assigned Doctor'}
+                </Text>
+                <Text style={[styles.tdMuted, { flex: 2 }]} numberOfLines={1}>
+                  {item.appointment_date || '-'} {item.appointment_time || item.time || ''}
+                </Text>
+                <View style={[styles.statusCell, { flex: 1.5 }]}>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>PENDING</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
                 </View>
-                <Feather name="chevron-right" size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         {/* Live Inpatient Tracking Section */}
