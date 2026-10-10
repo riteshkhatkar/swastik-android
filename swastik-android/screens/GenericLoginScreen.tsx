@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { UserRoleType } from './RoleSelectionScreen';
-import { GoogleSignInModal } from '../components/GoogleSignInModal';
+import { promptGoogleSignIn } from '../services/googleAuth';
 import { GoogleLogo } from '../components/GoogleLogo';
 
 interface GenericLoginScreenProps {
@@ -94,8 +94,20 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
-  // Google Modal State
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  // Google Sign-In State
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const res = await promptGoogleSignIn(role);
+      if (res.success) {
+        onLoginSuccess();
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handlePasswordLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -362,24 +374,22 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
           </View>
 
           <TouchableOpacity
-            style={styles.googleBtn}
+            style={[styles.googleBtn, googleLoading && { opacity: 0.7 }]}
             activeOpacity={0.8}
-            onPress={() => setShowGoogleModal(true)}
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
           >
-            <GoogleLogo size={20} />
-            <Text style={[styles.googleBtnText, { marginLeft: 10 }]}>Sign in with Google</Text>
+            {googleLoading ? (
+              <ActivityIndicator size="small" color="#0D9488" />
+            ) : (
+              <>
+                <GoogleLogo size={20} />
+                <Text style={[styles.googleBtnText, { marginLeft: 10 }]}>Sign in with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Unified Google Sign-in Modal */}
-      <GoogleSignInModal
-        visible={showGoogleModal}
-        roleName={config.title}
-        roleValue={role}
-        onClose={() => setShowGoogleModal(false)}
-        onSuccess={onLoginSuccess}
-      />
     </View>
   );
 };

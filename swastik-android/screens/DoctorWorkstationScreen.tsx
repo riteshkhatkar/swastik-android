@@ -248,7 +248,7 @@ export const DoctorWorkstationScreen: React.FC<DoctorWorkstationScreenProps> = (
             {/* 3 Metric Cards Row */}
             <View style={styles.metricsRow}>
               <MetricCard
-                label="Today's Appointments"
+                label="Today's Appts"
                 value={stats.todayAppointments}
                 iconName="calendar"
               />
@@ -267,9 +267,9 @@ export const DoctorWorkstationScreen: React.FC<DoctorWorkstationScreenProps> = (
             {/* Today's Queue Tokens Section */}
             <View style={styles.scheduleCard}>
               <View style={styles.cardHeaderRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 8 }}>
                   <MaterialCommunityIcons name="ticket-confirmation" size={18} color="#0D9488" />
-                  <Text style={styles.cardHeaderTitle}>Live Queue Tokens Today</Text>
+                  <Text style={styles.cardHeaderTitle} numberOfLines={1}>Live Queue Tokens Today</Text>
                 </View>
                 <View style={styles.tokenCountBadge}>
                   <Text style={styles.tokenCountText}>{tokens.length} In Queue</Text>
@@ -643,6 +643,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
+    flexShrink: 0,
   },
   tokenCountText: {
     fontSize: 11,

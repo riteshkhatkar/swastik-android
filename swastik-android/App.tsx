@@ -1,6 +1,6 @@
 // swastik-android/App.tsx
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, StatusBar, BackHandler } from 'react-native';
+import { View, StyleSheet, StatusBar, BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './store/authStore';
 
@@ -180,14 +180,41 @@ export default function App() {
       }
 
       // 4. If on the root of ANY module (Doctor, Receptionist, Lab, Billing, Admin, Patient):
-      // Return cleanly to the Role Selection Options screen, instead of exiting the app!
+      // Ask user to confirm exit from workspace back to Welcome / Role Selection
       if (activeRoleModule !== null) {
-        setActiveRoleModule(null);
+        Alert.alert(
+          'Exit Workspace',
+          'Do you want to exit from this app?',
+          [
+            { text: 'No', style: 'cancel', onPress: () => {} },
+            {
+              text: 'Yes',
+              onPress: () => {
+                setActiveRoleModule(null);
+              },
+            },
+          ],
+          { cancelable: true }
+        );
         return true;
       }
 
-      // 5. If already on the Role Selection Options root, allow default OS exit
-      return false;
+      // 5. If already on the Role Selection Options root, prompt to exit the application
+      Alert.alert(
+        'Exit Swastik Hospital',
+        'Do you want to exit from this app?',
+        [
+          { text: 'No', style: 'cancel', onPress: () => {} },
+          {
+            text: 'Yes',
+            onPress: () => {
+              BackHandler.exitApp();
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+      return true;
     };
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);

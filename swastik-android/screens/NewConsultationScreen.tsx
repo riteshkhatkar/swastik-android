@@ -1015,12 +1015,12 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 onPress={() => setWorkstationMode('board')}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons
-                  name="view-dashboard-outline"
-                  size={16}
+                <Feather
+                  name="grid"
+                  size={15}
                   color={workstationMode === 'board' ? '#0D9488' : '#64748B'}
                 />
-                <Text style={[styles.modeSwitchText, workstationMode === 'board' && styles.modeSwitchTextActive]} numberOfLines={1}>
+                <Text style={[styles.modeSwitchText, workstationMode === 'board' && styles.modeSwitchTextActive]}>
                   Ward Round Board
                 </Text>
               </TouchableOpacity>
@@ -1030,12 +1030,12 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 onPress={() => setWorkstationMode('emr')}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons
-                  name="file-document-edit-outline"
-                  size={16}
+                <Feather
+                  name="file-text"
+                  size={15}
                   color={workstationMode === 'emr' ? '#0D9488' : '#64748B'}
                 />
-                <Text style={[styles.modeSwitchText, workstationMode === 'emr' && styles.modeSwitchTextActive]} numberOfLines={1}>
+                <Text style={[styles.modeSwitchText, workstationMode === 'emr' && styles.modeSwitchTextActive]}>
                   Full EMR Form
                 </Text>
               </TouchableOpacity>
@@ -1062,7 +1062,7 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                   <View style={styles.vitalsPulseGrid}>
                     <View style={styles.vitalPulseBox}>
                       <Text style={styles.vitalPulseLabel}>BP</Text>
-                      <Text style={styles.vitalPulseVal} numberOfLines={1}>
+                      <Text style={styles.vitalPulseVal} adjustsFontSizeToFit minimumFontScale={0.8}>
                         {vitalsList[0]?.bp_systolic ? `${vitalsList[0].bp_systolic}/${vitalsList[0].bp_diastolic}` : '120/80'}
                       </Text>
                       <Text style={styles.vitalPulseUnit}>mmHg</Text>
@@ -2455,22 +2455,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 3,
     marginBottom: 14,
-    overflow: 'hidden',
+    height: 44,
+    alignItems: 'center',
   },
   modeSwitchBtn: {
     flex: 1,
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    borderRadius: 7,
     gap: 6,
   },
   modeSwitchBtnActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 3,
     elevation: 2,
@@ -2533,7 +2534,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 8,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -2544,7 +2545,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   vitalPulseVal: {
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#1E293B',
     marginTop: 2,

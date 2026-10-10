@@ -39,7 +39,9 @@ interface GoogleSignInModalProps {
 
 const GOOGLE_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
-  '712569697364-5cmkrf6v6g85dk5o5s5qnfeokop2u0f8.apps.googleusercontent.com';
+  '1027164735664-tkhh39l9gdl13mfkkdd2uj5qdghvi6h1.apps.googleusercontent.com';
+
+const GOOGLE_REDIRECT_URI = 'https://swastik.orelse.ai';
 
 export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
   visible,
@@ -57,17 +59,12 @@ export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'swastik',
-        path: 'auth/google',
-      });
-
       const nonce = Math.random().toString(36).substring(2, 15);
       const state = Math.random().toString(36).substring(2, 15);
 
       const params = new URLSearchParams({
         client_id: GOOGLE_CLIENT_ID,
-        redirect_uri: redirectUri,
+        redirect_uri: GOOGLE_REDIRECT_URI,
         response_type: 'id_token',
         scope: 'openid email profile',
         prompt: 'select_account',
@@ -77,7 +74,7 @@ export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
 
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, GOOGLE_REDIRECT_URI);
 
       if (result.type === 'success' && result.url) {
         // Parse fragment (#id_token=...) or query string

@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import { GoogleSignInModal } from '../../components/GoogleSignInModal';
+import { promptGoogleSignIn } from '../../services/googleAuth';
 import { GoogleLogo } from '../../components/GoogleLogo';
 
 const { width } = Dimensions.get('window');
@@ -46,10 +46,22 @@ export const ReceptionistLoginScreen: React.FC<ReceptionistLoginScreenProps> = (
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
-  // Google Modal State
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  // Google Sign-In State
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const { login, requestOtp, otpLogin } = useAuthStore();
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const res = await promptGoogleSignIn('receptionist');
+      if (res.success) {
+        onLoginSuccess();
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handlePasswordLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -323,12 +335,19 @@ export const ReceptionistLoginScreen: React.FC<ReceptionistLoginScreenProps> = (
 
           {/* Sign in with Google */}
           <TouchableOpacity
-            style={styles.googleBtn}
+            style={[styles.googleBtn, googleLoading && { opacity: 0.7 }]}
             activeOpacity={0.8}
-            onPress={() => setShowGoogleModal(true)}
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
           >
-            <GoogleLogo size={20} />
-            <Text style={[styles.googleBtnText, { marginLeft: 10 }]}>Sign in with Google</Text>
+            {googleLoading ? (
+              <ActivityIndicator size="small" color="#0D9488" />
+            ) : (
+              <>
+                <GoogleLogo size={20} />
+                <Text style={[styles.googleBtnText, { marginLeft: 10 }]}>Sign in with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Help / IT Support Footer */}
@@ -340,15 +359,6 @@ export const ReceptionistLoginScreen: React.FC<ReceptionistLoginScreenProps> = (
           </View>
         </View>
       </ScrollView>
-
-      {/* Unified Google Sign-in Modal */}
-      <GoogleSignInModal
-        visible={showGoogleModal}
-        roleName="Receptionist Desk"
-        roleValue="receptionist"
-        onClose={() => setShowGoogleModal(false)}
-        onSuccess={onLoginSuccess}
-      />
     </View>
   );
 };

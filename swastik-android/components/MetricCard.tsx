@@ -24,7 +24,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({ label, value, iconName }
           <Ionicons name="time-outline" size={21} color="#1A7B76" />
         )}
       </View>
-      <Text style={styles.label} numberOfLines={2}>
+      <Text style={styles.label} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
         {label}
       </Text>
       <Text style={styles.value}>{value}</Text>

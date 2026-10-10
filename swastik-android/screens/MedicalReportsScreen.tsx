@@ -413,8 +413,8 @@ export const MedicalReportsScreen: React.FC<MedicalReportsScreenProps> = ({ onOp
             onPress={() => setActiveTab('patient')}
           >
             <Feather name="user" size={15} color={activeTab === 'patient' ? '#FFFFFF' : '#64748B'} style={{ marginRight: 6 }} />
-            <Text style={[styles.tabText, activeTab === 'patient' && styles.tabTextActive]}>
-              Patient Clinical Reports
+            <Text style={[styles.tabText, activeTab === 'patient' && styles.tabTextActive]} numberOfLines={1}>
+              Patient Reports
             </Text>
           </TouchableOpacity>
 
@@ -423,8 +423,8 @@ export const MedicalReportsScreen: React.FC<MedicalReportsScreenProps> = ({ onOp
             onPress={() => setActiveTab('hospital')}
           >
             <MaterialCommunityIcons name="hospital-building" size={16} color={activeTab === 'hospital' ? '#FFFFFF' : '#64748B'} style={{ marginRight: 6 }} />
-            <Text style={[styles.tabText, activeTab === 'hospital' && styles.tabTextActive]}>
-              Hospital MIS Reports
+            <Text style={[styles.tabText, activeTab === 'hospital' && styles.tabTextActive]} numberOfLines={1}>
+              Hospital MIS
             </Text>
           </TouchableOpacity>
         </View>
@@ -504,8 +504,8 @@ export const MedicalReportsScreen: React.FC<MedicalReportsScreenProps> = ({ onOp
                         onPress={() => handlePrintDischargeSummary(p)}
                         disabled={generatingPdf}
                       >
-                        <Feather name="printer" size={14} color="#1A7B76" style={{ marginRight: 6 }} />
-                        <Text style={styles.reportActionText}>Discharge Summary</Text>
+                        <Feather name="printer" size={13} color="#1A7B76" style={{ marginRight: 5 }} />
+                        <Text style={styles.reportActionText} numberOfLines={1}>Discharge Summary</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -513,8 +513,8 @@ export const MedicalReportsScreen: React.FC<MedicalReportsScreenProps> = ({ onOp
                         onPress={() => handlePrintClinicalEmr(p)}
                         disabled={generatingPdf}
                       >
-                        <Feather name="file-text" size={14} color="#1A7B76" style={{ marginRight: 6 }} />
-                        <Text style={styles.reportActionText}>Clinical EMR Dossier</Text>
+                        <Feather name="file-text" size={13} color="#1A7B76" style={{ marginRight: 5 }} />
+                        <Text style={styles.reportActionText} numberOfLines={1}>EMR Dossier</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -588,15 +588,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 4,
     marginBottom: 16,
-    gap: 4,
+    gap: 6,
   },
   tabBtn: {
     flex: 1,
+    height: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: 8,
+    overflow: 'hidden',
   },
   tabBtnActive: {
     backgroundColor: '#1A7B76',
