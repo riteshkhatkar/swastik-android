@@ -99,16 +99,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // 4. Role-based access validation:
       // - 'admin' has universal administrative access to all hospital portals
-      // - staff members can access their requested workspace
+      // - staff and patient members can only access their authorized workspace
       let activeRole: UserRole = normalizedRole;
       if (requestedRole) {
         if (normalizedRole === 'admin') {
           // Admin can manage/access whichever portal they chose!
           activeRole = requestedRole;
-        } else if (normalizedRole === 'patient' && requestedRole !== 'patient') {
-          // Patients cannot access staff portals
+        } else if (normalizedRole !== requestedRole) {
+          // Reject cross-role unauthorized access
           setAuthToken(null);
-          const errorMsg = 'Access Denied: Patient accounts cannot access hospital staff portals.';
+          const errorMsg = `Access Denied: Your account role is '${normalizedRole}', which does not have permission to access the '${requestedRole}' workspace.`;
           set({ isLoading: false, error: errorMsg, isAuthenticated: false });
           throw new Error(errorMsg);
         } else {
@@ -166,24 +166,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         serverUser = await authService.getMe().catch(() => data.user);
         serverRole = (serverUser?.role || data.role || role) as UserRole;
       } catch (googleApiErr: any) {
-        // If Google verification fails (e.g., development mock token), authenticate via authorized email
-        const emailMatch = idToken.match(/(?:oauth2-)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        const email = emailMatch ? emailMatch[1] : null;
-        if (email) {
-          try {
-            await get().login(email, role === 'doctor' ? 'pm@123' : `${role}123`, role as UserRole);
-            return true;
-          } catch {
-            await get().demoLogin(role as UserRole);
-            const currentUser = get().user;
-            if (currentUser) {
-              set({ user: { ...currentUser, email } });
-            }
-            return true;
-          }
-        }
-        await get().demoLogin(role as UserRole);
-        return true;
+        // Truthful error propagation: Never fabricate mock tokens or fake success
+        const errMsg = getApiErrorMessage(googleApiErr);
+        throw new Error(errMsg || 'Google authentication failed on server.');
       }
 
       if (SecureStore && token) {
@@ -292,32 +277,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const cred = testCredentials[role];
     if (cred) {
-      try {
-        await get().login(cred.u, cred.p, role);
-        return;
-      } catch (e) {
-        console.warn(`Dev login with credentials for ${role} fallback:`, e);
-      }
+      await get().login(cred.u, cred.p, role);
+      return;
     }
-
-    // Dev-only fallback
-    const devUser: User = {
-      id: `dev-${role}-${Date.now()}`,
-      username: `dev_${role}`,
-      full_name: `Dev ${role.toUpperCase()}`,
-      role: role,
-      department: role === 'doctor' ? 'Psychiatry' : role === 'lab' ? 'Laboratory' : role === 'billing' ? 'Finance' : 'General',
-    };
-    const devToken = `dev-token-${role}-${Date.now()}`;
-    setAuthToken(devToken);
-    set({
-      token: devToken,
-      user: devUser,
-      role: role,
-      isAuthenticated: true,
-      isLoading: false,
-      error: null,
-    });
+    throw new Error(`No credentials configured for role: ${role}`);
   },
 
   logout: async () => {

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { receptionistApi } from '../../services/api';
+import { receptionistApi, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { generateInvoiceHtml, printOrSharePdf } from '../../utils/pdfGenerator';
 
@@ -121,6 +121,7 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
             amount: numericAmount,
             method: 'Cash',
             transaction_reference: 'CASH-' + Date.now().toString().slice(-6),
+            created_by: receptionistName,
           });
         } catch (pmtErr) {
           console.log('Payment record note:', pmtErr);
@@ -136,8 +137,7 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
       setUhid('');
       loadBills();
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to create bill on backend.';
-      Alert.alert('Bill Creation Failed', msg);
+      Alert.alert('Bill Creation Failed', getApiErrorMessage(err));
     }
   };
 
@@ -147,13 +147,13 @@ export const ReceptionistBillingScreen: React.FC<ReceptionistBillingScreenProps>
         amount: Number(bill.amount || 0),
         method: 'Cash',
         transaction_reference: 'CASH-' + Date.now().toString().slice(-6),
+        created_by: receptionistName,
       });
       setSelectedBill(null);
       Alert.alert('Payment Recorded ✅', `₹${bill.amount} collected for ${bill.patientName}.`);
       loadBills();
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to record payment.';
-      Alert.alert('Payment Failed', msg);
+      Alert.alert('Payment Failed', getApiErrorMessage(err));
     }
   };
 

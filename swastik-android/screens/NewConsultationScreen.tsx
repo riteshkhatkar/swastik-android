@@ -321,13 +321,48 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
         consultation_date: new Date().toISOString(),
       };
 
+      // Resolve active admission_id for this patient (required for all backend EMR records)
+      let admissionId = selectedPatient.admission_id || selectedPatient.id;
+      try {
+        const activeAdm = await clinicalApi.getActiveAdmission(uhid);
+        if (activeAdm && (activeAdm.admission_id || activeAdm.id)) {
+          admissionId = activeAdm.admission_id || activeAdm.id;
+        } else if (!admissionId) {
+          const newAdm = await clinicalApi.createAdmission(uhid, {
+            admission_reason: 'OPD Psychiatric Consultation',
+            clinical_status: 'Under Observation',
+          }, 'Dr. P. M. Chougule');
+          admissionId = newAdm?.admission_id || newAdm?.id;
+        }
+      } catch (admErr) {
+        console.log('Admission resolution note:', admErr);
+        if (!admissionId) admissionId = `ADM-${uhid}`;
+      }
+
       await Promise.all([
-        clinicalApi.saveConsultation(uhid, payload),
-        clinicalApi.saveMse(uhid, { mse: mseFindings }),
-        clinicalApi.saveDiagnosis(uhid, { diagnosis, severity }),
-        clinicalApi.saveRisk(uhid, { suicide: suicideRisk, selfHarm: selfHarmRisk, aggression: aggressionRisk }),
-        clinicalApi.savePrescription(uhid, { medicines: medications, diagnosis }),
-        clinicalApi.addVitals(uhid, { bp, pulse, temp, weight, height, spo2 }),
+        clinicalApi.saveConsultation(uhid, { ...payload, admission_id: admissionId }),
+        clinicalApi.saveMse(uhid, { admission_id: admissionId, mse: mseFindings }),
+        clinicalApi.saveDiagnosis(uhid, { admission_id: admissionId, diagnosis, severity }),
+        clinicalApi.saveRisk(uhid, {
+          admission_id: admissionId,
+          suicide: suicideRisk,
+          selfHarm: selfHarmRisk,
+          aggression: aggressionRisk,
+        }),
+        clinicalApi.savePrescription(uhid, {
+          admission_id: admissionId,
+          medicines: medications,
+          diagnosis,
+        }),
+        clinicalApi.addVitals(uhid, {
+          admission_id: admissionId,
+          bp,
+          pulse,
+          temp,
+          weight,
+          height,
+          spo2,
+        }),
       ]);
 
       if (selectedLabs && selectedLabs.length > 0) {
@@ -335,6 +370,7 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
           await labApi.createLabTestRequest({
             patient_id: uhid,
             doctor_id: 'dr_chougule',
+            admission_id: admissionId,
             tests_ordered: selectedLabs,
             clinical_notes: `Diagnosis: ${diagnosis}. Severity: ${severity}`,
           });

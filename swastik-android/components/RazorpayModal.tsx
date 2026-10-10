@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { billingApi, getApiErrorMessage } from '../services/api';
 import { printOrSharePdf, generateInvoiceHtml } from '../utils/pdfGenerator';
+import { useAuthStore } from '../store/authStore';
 
 interface RazorpayModalProps {
   visible: boolean;
@@ -39,6 +40,7 @@ export const RazorpayModal: React.FC<RazorpayModalProps> = ({
   onSuccess,
   billData,
 }) => {
+  const { user } = useAuthStore();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('upi');
   const [selectedUpiApp, setSelectedUpiApp] = useState<'gpay' | 'phonepe' | 'paytm'>('gpay');
   const [upiId, setUpiId] = useState('');
@@ -78,6 +80,7 @@ export const RazorpayModal: React.FC<RazorpayModalProps> = ({
         amount: Number(billData.amount) || 0,
         method: methodLabel,
         transaction_reference: txnRef,
+        created_by: user?.full_name || user?.username || 'Staff',
       });
 
       const paymentId = payRes?.receipt_number || payRes?.payment_id || txnRef;

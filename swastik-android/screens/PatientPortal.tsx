@@ -25,6 +25,7 @@ import {
 } from '../services/api';
 import { printOrSharePdf, generateLabReportHtml } from '../utils/pdfGenerator';
 import { RazorpayModal } from '../components/RazorpayModal';
+import { useAuthStore } from '../store/authStore';
 
 interface PatientPortalProps {
   onBack?: () => void;
@@ -32,6 +33,7 @@ interface PatientPortalProps {
 
 export const PatientPortal: React.FC<PatientPortalProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
 
   // Active Patient State
   const [currentPatient, setCurrentPatient] = useState<any>(null);
@@ -73,23 +75,34 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({ onBack }) => {
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [selectedBillForPayment, setSelectedBillForPayment] = useState<any>(null);
 
-  // Load initial patients for quick lookup
+  // Secure Patient Session: Load authentic patient records for logged-in patient
   useEffect(() => {
-    patientApi
-      .getPatients(0, 10)
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setRecentPatients(data);
-          // If at least one patient exists, we can pre-select the first one or let user choose
-          if (data.length > 0 && !currentPatient) {
-            handleSelectPatient(data[0]);
+    if (user && user.role === 'patient') {
+      const uhidOrUsername = user.username || user.id;
+      patientApi
+        .getPatientByUhid(uhidOrUsername)
+        .then((pat) => {
+          if (pat && pat.uhid) {
+            handleSelectPatient(pat);
+          } else {
+            const fallbackPat = {
+              name: user.full_name || 'Patient',
+              uhid: uhidOrUsername,
+              phone: user.phone || '',
+            };
+            handleSelectPatient(fallbackPat);
           }
-        }
-      })
-      .catch(() => {
-        // Fallback gracefully
-      });
-  }, []);
+        })
+        .catch(() => {
+          const fallbackPat = {
+            name: user.full_name || 'Patient',
+            uhid: uhidOrUsername,
+            phone: user.phone || '',
+          };
+          handleSelectPatient(fallbackPat);
+        });
+    }
+  }, [user]);
 
   // Fetch all patient details and records
   const loadPatientData = useCallback(async (patient: any) => {

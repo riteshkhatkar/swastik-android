@@ -1023,7 +1023,17 @@ export const billingService = {
       created_by?: string;
     }
   ): Promise<any> => {
-    const response = await api.post(`/api/bills/${encodeURIComponent(billId)}/payment`, data);
+    const payload = {
+      amount: Number(data.amount) || 0,
+      method: data.method || 'Cash',
+      transaction_reference:
+        (data.transaction_reference || '').trim() ||
+        (data.method === 'Cash'
+          ? 'CASH-' + Date.now().toString().slice(-6)
+          : 'TXN-' + Date.now().toString().slice(-8)),
+      created_by: (data.created_by || '').trim() || 'Staff',
+    };
+    const response = await api.post(`/api/bills/${encodeURIComponent(billId)}/payment`, payload);
     dataSync.notify('invoice');
     return response.data;
   },

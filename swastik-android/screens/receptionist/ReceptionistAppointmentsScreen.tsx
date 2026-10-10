@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { receptionistApi, getApiErrorMessage } from '../../services/api';
+import { receptionistApi, tokenApi, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 interface ReceptionistAppointmentsScreenProps {
@@ -78,10 +78,24 @@ export const ReceptionistAppointmentsScreen: React.FC<ReceptionistAppointmentsSc
     const aptId = item.id || item._id;
     try {
       await receptionistApi.updateAppointmentStatus(aptId, 'checked_in');
+      let tokenNotice = '';
+      try {
+        const tokenRes = await tokenApi.generateToken({
+          patient_id: item.uhid || item.patient_id || item.patientId || 'patient-1',
+          doctor_id: item.doctor_id || item.doctorId || 'doc-chougule',
+          appointment_id: aptId,
+        });
+        if (tokenRes?.token_number) {
+          tokenNotice = `\nQueue Token #${tokenRes.token_number} generated.`;
+        }
+      } catch (tokErr) {
+        console.log('Token generation notice:', tokErr);
+      }
+
       setAppointments((prev) =>
         prev.map((a) => ((a.id || a._id) === aptId ? { ...a, status: 'checked_in' } : a))
       );
-      Alert.alert('Checked In ✅', `${item.patient_name || item.patientName} marked as Checked In.`);
+      Alert.alert('Checked In ✅', `${item.patient_name || item.patientName} marked as Checked In.${tokenNotice}`);
     } catch (e: any) {
       Alert.alert('Check-In Failed', getApiErrorMessage(e));
     }

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { adminApi, patientService } from '../../services/api';
+import { adminApi, patientService, getApiErrorMessage } from '../../services/api';
 import { useDataSync } from '../../store/dataSync';
 
 const DEFAULT_STAFF_USERS = [
@@ -62,7 +62,10 @@ export const AdminUserManagementScreen: React.FC<AdminUserManagementScreenProps>
     setLoading(true);
     try {
       const [userData, patientData] = await Promise.all([
-        adminApi.getUsers().catch(() => []),
+        adminApi.getUsers().catch((err) => {
+          console.log('Backend users fetch note:', err);
+          return [];
+        }),
         patientService.getPatients().catch(() => []),
       ]);
       if (Array.isArray(userData) && userData.length > 0) {
@@ -73,7 +76,8 @@ export const AdminUserManagementScreen: React.FC<AdminUserManagementScreenProps>
       if (Array.isArray(patientData)) {
         setPatients(patientData);
       }
-    } catch {
+    } catch (err: any) {
+      console.warn('Could not load users:', err);
       setUsers(DEFAULT_STAFF_USERS);
     } finally {
       setLoading(false);
@@ -128,7 +132,7 @@ export const AdminUserManagementScreen: React.FC<AdminUserManagementScreenProps>
               );
               Alert.alert('Status Updated', `User account marked as ${nextStatus}.`);
             } catch (err: any) {
-              Alert.alert('Error', err?.message || 'Failed to update user status.');
+              Alert.alert('Error', getApiErrorMessage(err));
             }
           },
         },
@@ -148,7 +152,7 @@ export const AdminUserManagementScreen: React.FC<AdminUserManagementScreenProps>
       setNewPassword('');
       setSelectedUser(null);
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Could not reset password.');
+      Alert.alert('Error', getApiErrorMessage(err));
     }
   };
 
@@ -181,7 +185,7 @@ export const AdminUserManagementScreen: React.FC<AdminUserManagementScreenProps>
       setNewUser({ full_name: '', username: '', email: '', phone: '', role: 'receptionist', password: '' });
       Alert.alert('User Created ✅', `Staff account for '${newUser.full_name}' created.`);
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to create user.');
+      Alert.alert('Error', getApiErrorMessage(err));
     }
   };
 

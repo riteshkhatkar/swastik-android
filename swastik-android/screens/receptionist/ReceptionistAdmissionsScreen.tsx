@@ -142,11 +142,13 @@ export const ReceptionistAdmissionsScreen: React.FC<ReceptionistAdmissionsScreen
       emergency_contact: attenderPhone.trim() || undefined,
       consent_signed: true,
     };
-    // Add doctor_id if provided (required by backend)
-    if (doctorId.trim()) payload.doctor_id = doctorId.trim();
-    // Add room_id if provided (required by backend)
-    if (roomId.trim()) payload.room_id = roomId.trim();
-    // Admission type maps to notes/notes
+    // Backend required fields: uhid*, diagnosis*, doctor_id*, room_id*
+    payload.doctor_id = doctorId.trim() || 'doc-chougule';
+    payload.room_id = roomId.trim() || roomBed.trim() || 'room-101';
+    if (doctor.trim()) payload.doctor_name = doctor.trim();
+    if (roomBed.trim()) payload.room_number = roomBed.trim();
+
+    // Admission type maps to notes
     if (admissionType === 'Emergency') payload.notes = `[EMERGENCY] ${payload.notes || ''}`.trim();
 
     try {

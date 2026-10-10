@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { receptionistApi } from '../../services/api';
+import { receptionistApi, getApiErrorMessage } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { generateCasePaperHtml, printOrSharePdf } from '../../utils/pdfGenerator';
 
@@ -187,7 +187,7 @@ export const PatientRegistrationScreen: React.FC<PatientRegistrationScreenProps>
     } catch (e: any) {
       Alert.alert(
         'Registration Failed',
-        e?.response?.data?.detail || e.message || 'Could not register patient on server. Please check details and try again.'
+        getApiErrorMessage(e)
       );
     } finally {
       setLoading(false);

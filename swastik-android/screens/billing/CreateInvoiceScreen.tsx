@@ -16,6 +16,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { billingApi, patientApi, getApiErrorMessage } from '../../services/api';
 import { printOrSharePdf, generateInvoiceHtml } from '../../utils/pdfGenerator';
 import { RazorpayModal } from '../../components/RazorpayModal';
+import { useAuthStore } from '../../store/authStore';
 
 interface CreateInvoiceScreenProps {
   onOpenDrawer: () => void;
@@ -27,6 +28,7 @@ export const CreateInvoiceScreen: React.FC<CreateInvoiceScreenProps> = ({
   onInvoiceCreated,
 }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
   const [patientSearch, setPatientSearch] = useState('');
   const [searchingPatient, setSearchingPatient] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -184,10 +186,12 @@ export const CreateInvoiceScreen: React.FC<CreateInvoiceScreenProps> = ({
   const handleFinalize = async () => {
     setSubmitting(true);
     try {
+      const creatorName = user?.full_name || user?.username || 'Billing Staff';
       const billPayload = {
         patient_id: patient.uhid,
         patient_name: patient.name,
         uhid: patient.uhid,
+        created_by: creatorName,
         subtotal,
         tax: totalTax,
         discount: totalDiscount,
@@ -215,6 +219,7 @@ export const CreateInvoiceScreen: React.FC<CreateInvoiceScreenProps> = ({
               amount: grandTotal,
               method: 'Cash',
               transaction_reference: paymentRef || ('CASH-' + Date.now().toString().slice(-6)),
+              created_by: creatorName,
             });
           } catch (pmtErr) {
             console.log('Payment record note:', pmtErr);

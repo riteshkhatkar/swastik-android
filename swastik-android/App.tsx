@@ -107,6 +107,15 @@ export default function App() {
     restoreSession();
   }, []);
 
+  // Global Session-Expired / 401 Reactive Guard:
+  // Whenever authentication is revoked or expired, return to login/role-selection immediately
+  useEffect(() => {
+    if (!isAuthenticated && activeRoleModule !== null) {
+      setActiveRoleModule(null);
+      setSelectedRoleForLogin(null);
+    }
+  }, [isAuthenticated, activeRoleModule]);
+
   // Comprehensive Android Hardware Back Button Handler
   useEffect(() => {
     const onBackPress = () => {
@@ -188,25 +197,30 @@ export default function App() {
     isReceptionistDrawerOpen,
     isLabDrawerOpen,
     isBillingDrawerOpen,
+    isAdminDrawerOpen,
     activeRoleModule,
     activeDoctorScreen,
     activeReceptionistScreen,
     activeLabScreen,
     selectedLabReport,
     activeBillingScreen,
+    activeAdminScreen,
     selectedRoleForLogin,
   ]);
 
   const handleRoleSelect = (role: UserRoleType) => {
-    if (role === 'patient') {
-      setActiveRoleModule('patient');
-      return;
-    }
-
-    // For staff roles (Admin, Doctor, Receptionist, Lab, Billing), verify session & role
+    // For all roles (Doctor, Receptionist, Lab, Billing, Admin, Patient):
+    // Authenticate via server token & verify server role matches requested workspace.
+    // Admin has universal administrative access across hospital management.
     const hasRoleAccess =
       isAuthenticated &&
-      (user?.role === role || (user?.role === 'admin' && (role === 'billing' || role === 'admin')));
+      (user?.role === role ||
+        (user?.role === 'admin' &&
+          (role === 'admin' ||
+            role === 'billing' ||
+            role === 'doctor' ||
+            role === 'receptionist' ||
+            role === 'lab')));
 
     if (hasRoleAccess) {
       setActiveRoleModule(role);
@@ -255,6 +269,7 @@ export default function App() {
     setIsReceptionistDrawerOpen(false);
     setIsLabDrawerOpen(false);
     setIsBillingDrawerOpen(false);
+    setIsAdminDrawerOpen(false);
     logout();
     setActiveRoleModule(null);
     setSelectedRoleForLogin(null);
@@ -262,6 +277,7 @@ export default function App() {
     setActiveReceptionistScreen('Dashboard');
     setActiveLabScreen('Dashboard');
     setActiveBillingScreen('Dashboard');
+    setActiveAdminScreen('Overview');
     setSelectedLabReport(null);
   };
 
