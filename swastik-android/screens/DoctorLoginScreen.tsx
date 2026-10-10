@@ -34,13 +34,13 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
 
   // Password Login State
-  const [username, setUsername] = useState('pmchougule');
-  const [password, setPassword] = useState('pm@123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // OTP Login State
-  const [otpIdentifier, setOtpIdentifier] = useState('+91 98220 12345');
+  const [otpIdentifier, setOtpIdentifier] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -193,43 +193,6 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({
 
           {authMode === 'password' ? (
             <>
-              {/* Quick Doctor Account Selector Chips */}
-              <View style={styles.quickAccountsRow}>
-                <TouchableOpacity
-                  style={[styles.accountChip, username === 'pmchougule' && styles.accountChipActive]}
-                  onPress={() => {
-                    setUsername('pmchougule');
-                    setPassword('pm@123');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.accountChipText,
-                      username === 'pmchougule' && styles.accountChipTextActive,
-                    ]}
-                  >
-                    Dr. P. M. Chougule
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.accountChip, username === 'nikhilchougule' && styles.accountChipActive]}
-                  onPress={() => {
-                    setUsername('nikhilchougule');
-                    setPassword('nk@123');
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.accountChipText,
-                      username === 'nikhilchougule' && styles.accountChipTextActive,
-                    ]}
-                  >
-                    Dr. Nikhil Chougule
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
               {/* Form Fields */}
               <View style={styles.formContainer}>
                 {/* Username / Email / Phone Input */}

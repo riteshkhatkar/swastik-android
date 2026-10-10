@@ -14,9 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
 import { WhatsAppFloat } from '../components/WhatsAppFloat';
-import { GoogleLogo } from '../components/GoogleLogo';
-import { GoogleSignInModal } from '../components/GoogleSignInModal';
-import { useAuthStore } from '../store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -39,7 +36,6 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [pressedRoleId, setPressedRoleId] = React.useState<UserRoleType | null>(null);
-  const [showGoogleModal, setShowGoogleModal] = React.useState(false);
 
   const roles = [
     {
@@ -122,29 +118,6 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
           <View style={styles.accentBar} />
         </View>
 
-        {/* Quick Google Sign-In Card */}
-        <TouchableOpacity
-          style={styles.googleQuickCard}
-          activeOpacity={0.85}
-          onPress={() => setShowGoogleModal(true)}
-        >
-          <View style={styles.googleIconBox}>
-            <GoogleLogo size={22} />
-          </View>
-          <View style={{ flex: 1, paddingHorizontal: 10 }}>
-            <Text style={styles.googleQuickTitle}>Sign in with Google</Text>
-            <Text style={styles.googleQuickSub}>Instant login with authorized email</Text>
-          </View>
-          <Feather name="arrow-right" size={18} color="#0F766E" />
-        </TouchableOpacity>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR SELECT DOMAIN</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
         {/* List of Role Cards */}
         <View style={styles.cardsList}>
           {roles.map((role) => {
@@ -224,21 +197,6 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({
 
       {/* Floating WhatsApp Action Button */}
       <WhatsAppFloat />
-
-      {/* Google Sign In Account Picker Modal */}
-      <GoogleSignInModal
-        visible={showGoogleModal}
-        onClose={() => setShowGoogleModal(false)}
-        onSelectAccount={(account) => {
-          setShowGoogleModal(false);
-          const mappedRole = (account.role as UserRoleType) || 'doctor';
-          if (onLoginSuccess) {
-            onLoginSuccess(mappedRole);
-          } else {
-            onSelectRole(mappedRole);
-          }
-        }}
-      />
     </View>
   );
 };

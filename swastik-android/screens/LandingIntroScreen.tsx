@@ -8,11 +8,10 @@ import {
   Dimensions,
   Animated,
   Easing,
-  TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,38 +22,19 @@ interface LandingIntroScreenProps {
 export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onGetStarted }) => {
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     // Fade in content
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 800,
+      duration: 600,
       useNativeDriver: true,
     }).start();
 
-    // Pulse CTA button only (background image already has the loading ring)
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Auto-advance after 3.2s if user doesn't tap
+    // Auto-advance after 2.8s
     const timer = setTimeout(() => {
       onGetStarted();
-    }, 3200);
+    }, 2800);
 
     return () => clearTimeout(timer);
   }, []);
@@ -63,14 +43,14 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onGetSta
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#F4FAFA" translucent={false} />
 
-      {/* Full-screen background image (contains the Swastik branding + loading ring) */}
+      {/* Clean full-screen hospital background */}
       <Image
         source={require('../assets/landing_screen_bg.png')}
         style={styles.backgroundImage}
         resizeMode="cover"
       />
 
-      {/* Overlay: only the Get Started CTA at the bottom */}
+      {/* Active Loading Section */}
       <Animated.View
         style={[
           styles.overlayContainer,
@@ -81,18 +61,12 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onGetSta
           },
         ]}
       >
-        {/* Bottom CTA container */}
-        <View style={styles.bottomCtaRow}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
-              style={styles.getStartedBtn}
-              activeOpacity={0.85}
-              onPress={onGetStarted}
-            >
-              <Text style={styles.getStartedText}>Get Started</Text>
-              <Feather name="arrow-right" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          </Animated.View>
+        <View style={styles.loadingContainer}>
+          <View style={styles.spinnerWrapper}>
+            <ActivityIndicator size="large" color="#0D9488" />
+          </View>
+          <Text style={styles.loadingTitle}>Loading...</Text>
+          <Text style={styles.loadingSubtitle}>Preparing your workspace</Text>
         </View>
       </Animated.View>
     </View>
@@ -116,32 +90,39 @@ const styles = StyleSheet.create({
   overlayContainer: {
     flex: 1,
     zIndex: 2,
-    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  bottomCtaRow: {
-    marginBottom: 40,
+  loadingContainer: {
+    marginTop: height * 0.28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  getStartedBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#0F766E',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
+  spinnerWrapper: {
+    width: 60,
+    height: 60,
     borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
     shadowColor: '#0F766E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  getStartedText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+  loadingTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    color: '#0F172A',
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  loadingSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
   },
 });
+

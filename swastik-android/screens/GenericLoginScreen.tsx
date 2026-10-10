@@ -40,9 +40,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Receptionist Login',
           subtitle: 'Sign in to access registration workspace',
-          defaultUser: 'receptionist',
-          defaultPass: 'receptionist123',
-          defaultPhone: '+91 98765 43210',
           icon: 'person-outline',
           iconType: 'ionicons',
         };
@@ -50,9 +47,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Lab Technician Login',
           subtitle: 'Sign in to access pathology lab orders',
-          defaultUser: 'lab',
-          defaultPass: 'lab123',
-          defaultPhone: '+91 91234 56789',
           icon: 'flask-outline',
           iconType: 'material',
         };
@@ -60,9 +54,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Billing Login',
           subtitle: 'Sign in to access billing & invoices',
-          defaultUser: 'billing',
-          defaultPass: 'billing123',
-          defaultPhone: '+91 98765 11223',
           icon: 'file-document-outline',
           iconType: 'material',
         };
@@ -70,9 +61,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Admin Login',
           subtitle: 'Sign in to system administration',
-          defaultUser: 'admin',
-          defaultPass: 'admin123',
-          defaultPhone: '+91 7385660739',
           icon: 'settings',
           iconType: 'feather',
         };
@@ -80,9 +68,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Patient Portal Login',
           subtitle: 'Sign in with UHID or registered mobile',
-          defaultUser: 'SWASTIK-2026-00001',
-          defaultPass: 'patient123',
-          defaultPhone: '+91 98220 99887',
           icon: 'person',
           iconType: 'ionicons',
         };
@@ -90,9 +75,6 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
         return {
           title: 'Staff Login',
           subtitle: 'Sign in to access your workspace',
-          defaultUser: 'admin',
-          defaultPass: 'admin123',
-          defaultPhone: '+91 7385660739',
           icon: 'person-outline',
           iconType: 'ionicons',
         };
@@ -100,13 +82,13 @@ export const GenericLoginScreen: React.FC<GenericLoginScreenProps> = ({
   };
 
   const config = getRoleConfig();
-  const [username, setUsername] = useState(config.defaultUser);
-  const [password, setPassword] = useState(config.defaultPass);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // OTP State
-  const [otpIdentifier, setOtpIdentifier] = useState(config.defaultPhone);
+  const [otpIdentifier, setOtpIdentifier] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);

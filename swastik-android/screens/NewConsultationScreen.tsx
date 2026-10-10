@@ -968,8 +968,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
           <View>
             {/* Sticky Patient Context Header Banner */}
             <View style={styles.patientBanner}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {/* Row 1: Patient Name & Status Badges */}
+              <View style={styles.bannerTopRow}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <Text style={styles.bannerPatientName}>{selectedPatient.name || selectedPatient.patient_name}</Text>
                   <View style={[styles.sessionBadge, isSessionLocked && styles.sessionBadgeLocked]}>
                     <Feather name={isSessionLocked ? 'lock' : 'check-circle'} size={11} color="#FFF" />
@@ -983,22 +984,26 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                     </View>
                   )}
                 </View>
-                <Text style={styles.bannerPatientMeta}>
-                  UHID: {selectedPatient.uhid || selectedPatient.id} | {selectedPatient.age || 30} Yrs | {selectedPatient.gender || 'General'} | {doctorName}
-                </Text>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <TouchableOpacity style={styles.lockToggleBtn} onPress={handleToggleSessionLock}>
+              {/* Row 2: Full-Width Patient Metadata */}
+              <Text style={styles.bannerPatientMeta} numberOfLines={2}>
+                UHID: {selectedPatient.uhid || selectedPatient.id}  •  {selectedPatient.age || 30} Yrs  •  {selectedPatient.gender || 'General'}  •  {doctorName}
+              </Text>
+
+              {/* Row 3: Action Buttons */}
+              <View style={styles.bannerActionsRow}>
+                <TouchableOpacity style={styles.lockToggleBtn} onPress={handleToggleSessionLock} activeOpacity={0.8}>
                   <Feather name={isSessionLocked ? 'unlock' : 'lock'} size={13} color="#0D9488" />
                   <Text style={styles.lockToggleText}>{isSessionLocked ? 'Unlock' : 'Lock'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.printReportHeaderBtn} onPress={handlePrintFullReport}>
+                <TouchableOpacity style={styles.printReportHeaderBtn} onPress={handlePrintFullReport} activeOpacity={0.8}>
                   <Feather name="printer" size={13} color="#FFFFFF" />
                   <Text style={styles.printReportHeaderText}>Report</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.changePatientBtn} onPress={() => setSelectedPatient(null)}>
-                  <Text style={styles.changePatientText}>Switch</Text>
+                <TouchableOpacity style={styles.changePatientBtn} onPress={() => setSelectedPatient(null)} activeOpacity={0.8}>
+                  <Feather name="users" size={13} color="#475569" />
+                  <Text style={styles.changePatientText}>Switch Patient</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1008,13 +1013,14 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
               <TouchableOpacity
                 style={[styles.modeSwitchBtn, workstationMode === 'board' && styles.modeSwitchBtnActive]}
                 onPress={() => setWorkstationMode('board')}
+                activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="view-dashboard-outline"
                   size={16}
                   color={workstationMode === 'board' ? '#0D9488' : '#64748B'}
                 />
-                <Text style={[styles.modeSwitchText, workstationMode === 'board' && styles.modeSwitchTextActive]}>
+                <Text style={[styles.modeSwitchText, workstationMode === 'board' && styles.modeSwitchTextActive]} numberOfLines={1}>
                   Ward Round Board
                 </Text>
               </TouchableOpacity>
@@ -1022,14 +1028,15 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
               <TouchableOpacity
                 style={[styles.modeSwitchBtn, workstationMode === 'emr' && styles.modeSwitchBtnActive]}
                 onPress={() => setWorkstationMode('emr')}
+                activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="file-document-edit-outline"
                   size={16}
                   color={workstationMode === 'emr' ? '#0D9488' : '#64748B'}
                 />
-                <Text style={[styles.modeSwitchText, workstationMode === 'emr' && styles.modeSwitchTextActive]}>
-                  Comprehensive EMR Form
+                <Text style={[styles.modeSwitchText, workstationMode === 'emr' && styles.modeSwitchTextActive]} numberOfLines={1}>
+                  Full EMR Form
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1040,9 +1047,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 {/* 1. Vitals Pulse Widget */}
                 <View style={styles.boardCard}>
                   <View style={styles.boardCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.boardCardTitleRow}>
                       <MaterialCommunityIcons name="heart-pulse" size={18} color="#10B981" />
-                      <Text style={styles.boardCardTitle}>Live Vitals Pulse</Text>
+                      <Text style={styles.boardCardTitle} numberOfLines={1}>Live Vitals Pulse</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.widgetActionBtn}
@@ -1055,22 +1062,24 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                   <View style={styles.vitalsPulseGrid}>
                     <View style={styles.vitalPulseBox}>
                       <Text style={styles.vitalPulseLabel}>BP</Text>
-                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.bp_systolic ? `${vitalsList[0].bp_systolic}/${vitalsList[0].bp_diastolic}` : '120/80'}</Text>
+                      <Text style={styles.vitalPulseVal} numberOfLines={1}>
+                        {vitalsList[0]?.bp_systolic ? `${vitalsList[0].bp_systolic}/${vitalsList[0].bp_diastolic}` : '120/80'}
+                      </Text>
                       <Text style={styles.vitalPulseUnit}>mmHg</Text>
                     </View>
                     <View style={styles.vitalPulseBox}>
                       <Text style={styles.vitalPulseLabel}>HR</Text>
-                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.hr || '74'}</Text>
+                      <Text style={styles.vitalPulseVal} numberOfLines={1}>{vitalsList[0]?.hr || '74'}</Text>
                       <Text style={styles.vitalPulseUnit}>bpm</Text>
                     </View>
                     <View style={styles.vitalPulseBox}>
                       <Text style={styles.vitalPulseLabel}>SpO2</Text>
-                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.spo2 ? `${vitalsList[0].spo2}%` : '98%'}</Text>
+                      <Text style={styles.vitalPulseVal} numberOfLines={1}>{vitalsList[0]?.spo2 ? `${vitalsList[0].spo2}%` : '98%'}</Text>
                       <Text style={styles.vitalPulseUnit}>O2 Sat</Text>
                     </View>
                     <View style={styles.vitalPulseBox}>
                       <Text style={styles.vitalPulseLabel}>TEMP</Text>
-                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.temp ? `${vitalsList[0].temp}°` : '36.8°'}</Text>
+                      <Text style={styles.vitalPulseVal} numberOfLines={1}>{vitalsList[0]?.temp ? `${vitalsList[0].temp}°C` : '36.8°C'}</Text>
                       <Text style={styles.vitalPulseUnit}>Celsius</Text>
                     </View>
                   </View>
@@ -1079,9 +1088,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 {/* 2. Clinical Impression & Risk Widget */}
                 <View style={styles.boardCard}>
                   <View style={styles.boardCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.boardCardTitleRow}>
                       <MaterialCommunityIcons name="brain" size={18} color="#8B5CF6" />
-                      <Text style={styles.boardCardTitle}>Clinical Impression & Risk Profile</Text>
+                      <Text style={styles.boardCardTitle} numberOfLines={1}>Clinical Impression & Risk</Text>
                     </View>
                   </View>
                   <View style={styles.impressionBox}>
@@ -1122,9 +1131,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 {/* 3. Latest Clinical Assessment (SOAP) */}
                 <View style={styles.boardCard}>
                   <View style={styles.boardCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.boardCardTitleRow}>
                       <MaterialCommunityIcons name="file-document-outline" size={18} color="#0284C7" />
-                      <Text style={styles.boardCardTitle}>Latest Clinical Assessment (SOAP)</Text>
+                      <Text style={styles.boardCardTitle} numberOfLines={1}>Clinical Assessment (SOAP)</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.widgetActionBtn}
@@ -1153,9 +1162,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 {/* 4. Active Orders (Medications & Labs) */}
                 <View style={styles.boardCard}>
                   <View style={styles.boardCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.boardCardTitleRow}>
                       <MaterialCommunityIcons name="pill" size={18} color="#0D9488" />
-                      <Text style={styles.boardCardTitle}>Active Regimen & Investigations</Text>
+                      <Text style={styles.boardCardTitle} numberOfLines={1}>Active Regimen & Labs</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.widgetActionBtn}
@@ -1205,9 +1214,9 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
                 {/* 5. Rounding Logs Timeline */}
                 <View style={styles.boardCard}>
                   <View style={styles.boardCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.boardCardTitleRow}>
                       <MaterialCommunityIcons name="clipboard-text-clock" size={18} color="#0284C7" />
-                      <Text style={styles.boardCardTitle}>Rounding Progress Log</Text>
+                      <Text style={styles.boardCardTitle} numberOfLines={1}>Rounding Progress Log</Text>
                     </View>
                   </View>
                   {sessionNotesList.length === 0 ? (
@@ -2339,20 +2348,31 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'column',
+    gap: 8,
+    marginBottom: 12,
+  },
+  bannerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
   },
   bannerPatientName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: '#1E293B',
   },
   bannerPatientMeta: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748B',
     marginTop: 2,
+    lineHeight: 16,
+  },
+  bannerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
   },
   sessionBadge: {
     flexDirection: 'row',
@@ -2383,45 +2403,50 @@ const styles = StyleSheet.create({
     color: '#0284C7',
   },
   lockToggleBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 5,
     borderWidth: 1,
     borderColor: '#0D9488',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F0FDFA',
   },
   lockToggleText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#0D9488',
     fontWeight: '700',
   },
   printReportHeaderBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 5,
     backgroundColor: '#0D9488',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
   printReportHeaderText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '700',
   },
   changePatientBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 6,
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 7,
+    borderRadius: 8,
   },
   changePatientText: {
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 12,
+    color: '#475569',
     fontWeight: '600',
   },
   modeSwitchRow: {
@@ -2430,20 +2455,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 3,
     marginBottom: 14,
+    overflow: 'hidden',
   },
   modeSwitchBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
     borderRadius: 8,
     gap: 6,
   },
   modeSwitchBtnActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 1 },
     shadowRadius: 3,
     elevation: 2,
   },
@@ -2469,17 +2497,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  boardCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
   boardCardTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#1E293B',
+    flexShrink: 1,
   },
   widgetActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     backgroundColor: '#E6F4F1',
     borderRadius: 6,
   },
@@ -2490,13 +2526,14 @@ const styles = StyleSheet.create({
   },
   vitalsPulseGrid: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   vitalPulseBox: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -2507,14 +2544,16 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   vitalPulseVal: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: '#1E293B',
     marginTop: 2,
+    textAlign: 'center',
   },
   vitalPulseUnit: {
     fontSize: 9,
     color: '#94A3B8',
+    marginTop: 1,
   },
   impressionBox: {
     backgroundColor: '#F8FAFC',

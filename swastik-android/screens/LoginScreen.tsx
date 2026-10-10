@@ -31,12 +31,12 @@ export const LoginScreen: React.FC<Props> = ({
   selectedRole = 'admin', 
   onBackToWorkspaces 
 }) => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [locale, setLocale] = useState('English');
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login, demoLogin, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error, clearError } = useAuthStore();
 
   const handleLoginSubmit = async () => {
     if (!username.trim() || !password.trim()) {
@@ -52,11 +52,7 @@ export const LoginScreen: React.FC<Props> = ({
   const handleGoogleSignIn = () => {
     Alert.alert(
       'Google Sign-In',
-      `Connecting to Google OAuth for ${selectedRole.toUpperCase()} workspace. Signing in as demo user...`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Continue', onPress: () => demoLogin(selectedRole) }
-      ]
+      `Please use the official Google Sign-In with an authorized hospital email account.`
     );
   };
 
@@ -195,21 +191,7 @@ export const LoginScreen: React.FC<Props> = ({
                 <Text style={styles.googleBtnText}>Sign in with Google</Text>
               </TouchableOpacity>
 
-              {/* 1-Tap Quick Fill by Role */}
-              <View style={styles.quickFillArea}>
-                <Text style={styles.quickFillLabel}>Direct Demo Access:</Text>
-                <View style={styles.quickFillChips}>
-                  {(['admin', 'doctor', 'receptionist', 'lab', 'billing'] as UserRole[]).map((r) => (
-                    <TouchableOpacity
-                      key={r}
-                      style={styles.chip}
-                      onPress={() => demoLogin(r)}
-                    >
-                      <Text style={styles.chipText}>{r.toUpperCase()}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+
             </View>
           </View>
 

@@ -1,6 +1,6 @@
 // swastik-android/components/GoogleSignInModal.tsx
-// Professional Google Sign-In Modal for Swastik Hospital
-// Matches web Google OAuth integration (GoogleSignInModal.jsx) with live backend verification.
+// Professional Google Sign-In Component for Swastik Hospital
+// Integrates real Google OAuth flow with system Gmail account chooser and server token verification.
 
 import React, { useState } from 'react';
 import {
@@ -9,14 +9,17 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { GoogleLogo } from './GoogleLogo';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export interface GoogleAccountItem {
   name: string;
@@ -34,97 +37,75 @@ interface GoogleSignInModalProps {
   onSelectAccount?: (account: GoogleAccountItem) => void;
 }
 
-const ALL_AUTHORIZED_ACCOUNTS: GoogleAccountItem[] = [
-  { name: 'Ritesh Khatakar (Super Admin)', email: 'riteshkhatakar5@gmail.com', desc: 'Hospital Super Administrator', role: 'admin' },
-  { name: 'Dr. P. M. Chougule', email: 'vaishali@ova.ngo', desc: 'Senior Consultant Psychiatrist', role: 'doctor' },
-  { name: 'Priya Sharma (Reception)', email: 'vaishali@ova.ngo', desc: 'Front Desk Lead', role: 'receptionist' },
-  { name: 'Dr. Nikhil Chougule', email: 'vaishali@orelse.ai', desc: 'Consultant Psychiatrist', role: 'doctor' },
-  { name: 'Prerana Suryawanshi (Lab)', email: 'suryawanshiprerana107@gmail.com', desc: 'Pathology Lab Technician', role: 'lab' },
-  { name: 'Accounts Desk (Billing)', email: 'vaishali@ova.ngo', desc: 'Cashier & Patient Billing', role: 'billing' },
-  { name: 'System Administrator', email: 'vaishali@ova.ngo', desc: 'Executive Hospital Admin', role: 'admin' },
-  { name: 'Patient Portal SSO', email: 'vaishali@ova.ngo', desc: 'Registered Patient Access', role: 'patient' },
-];
-
-const AUTHORIZED_ACCOUNTS: Record<string, Array<{ name: string; email: string; desc: string; role: string }>> = {
-  doctor: [
-    { name: 'Dr. P. M. Chougule', email: 'vaishali@ova.ngo', desc: 'Senior Consultant Psychiatrist', role: 'doctor' },
-    { name: 'Dr. Nikhil Chougule', email: 'vaishali@orelse.ai', desc: 'Consultant Psychiatrist', role: 'doctor' },
-    { name: 'Dr. P. Suryawanshi', email: 'suryawanshiprerana107@gmail.com', desc: 'Clinical Medical Officer', role: 'doctor' },
-  ],
-  admin: [
-    { name: 'Ritesh Khatakar (Super Admin)', email: 'riteshkhatakar5@gmail.com', desc: 'Hospital Super Administrator', role: 'admin' },
-    { name: 'System Administrator', email: 'vaishali@ova.ngo', desc: 'Executive Hospital Admin', role: 'admin' },
-    { name: 'Admin Ops', email: 'vaishali@orelse.ai', desc: 'IT Infrastructure', role: 'admin' },
-  ],
-  receptionist: [
-    { name: 'Priya Sharma', email: 'vaishali@ova.ngo', desc: 'Front Desk Lead', role: 'receptionist' },
-    { name: 'Reception Desk 2', email: 'suryawanshiprerana107@gmail.com', desc: 'OPD Registration', role: 'receptionist' },
-  ],
-  lab: [
-    { name: 'Prerana Suryawanshi', email: 'suryawanshiprerana107@gmail.com', desc: 'Pathology Lab Technician', role: 'lab' },
-    { name: 'Laboratory Chief', email: 'vaishali@ova.ngo', desc: 'Clinical Biochemistry', role: 'lab' },
-  ],
-  billing: [
-    { name: 'Accounts Manager', email: 'vaishali@ova.ngo', desc: 'Cashier & Patient Billing', role: 'billing' },
-    { name: 'Finance Lead', email: 'vaishali@orelse.ai', desc: 'Hospital Accounts Desk', role: 'billing' },
-  ],
-  patient: [
-    { name: 'Patient Portal SSO', email: 'vaishali@ova.ngo', desc: 'Registered Patient User', role: 'patient' },
-  ],
-};
-
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '712569697364-5cmkrf6v6g85dk5o5s5qnfeokop2u0f8.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+  '712569697364-5cmkrf6v6g85dk5o5s5qnfeokop2u0f8.apps.googleusercontent.com';
 
 export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
   visible,
   roleName = 'Swastik Healthcare',
-  roleValue,
+  roleValue = 'doctor',
   onClose,
   onSuccess,
-  onSelectAccount,
 }) => {
   const { googleLogin } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [customEmail, setCustomEmail] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const accounts: GoogleAccountItem[] = roleValue
-    ? AUTHORIZED_ACCOUNTS[roleValue] || [
-        { name: 'Authorized Staff', email: 'vaishali@ova.ngo', desc: `${roleName} Access`, role: roleValue },
-        { name: 'Hospital Staff', email: 'suryawanshiprerana107@gmail.com', desc: 'Verified Domain', role: roleValue },
-      ]
-    : ALL_AUTHORIZED_ACCOUNTS;
-
-  const handleSelectAccount = async (account: GoogleAccountItem) => {
+  const handleStartGoogleOAuth = async () => {
     setLoading(true);
-    const targetRole = account.role || roleValue || 'doctor';
+    setErrorMessage(null);
+
     try {
-      const idToken = `oauth2-${account.email.trim()}`;
-      await googleLogin(idToken, targetRole);
-      onClose();
-      onSelectAccount?.(account);
-      onSuccess?.(targetRole);
-    } catch {
-      onClose();
-      onSelectAccount?.(account);
-      onSuccess?.(targetRole);
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'swastik',
+        path: 'auth/google',
+      });
+
+      const nonce = Math.random().toString(36).substring(2, 15);
+      const state = Math.random().toString(36).substring(2, 15);
+
+      const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: redirectUri,
+        response_type: 'id_token',
+        scope: 'openid email profile',
+        prompt: 'select_account',
+        nonce,
+        state,
+      });
+
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type === 'success' && result.url) {
+        // Parse fragment (#id_token=...) or query string
+        const urlPart = result.url.includes('#') ? result.url.split('#')[1] : result.url.split('?')[1];
+        const searchParams = new URLSearchParams(urlPart || '');
+        const idToken = searchParams.get('id_token');
+
+        if (!idToken) {
+          throw new Error('Google did not return an identity token. Please try again.');
+        }
+
+        // Verify token with backend
+        await googleLogin(idToken, roleValue);
+        onClose();
+        onSuccess?.(roleValue);
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User closed the account chooser
+        setLoading(false);
+      } else {
+        throw new Error('Authentication flow was not completed.');
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Google sign-in failed. Please ensure you are authorized.';
+      setErrorMessage(msg);
+      Alert.alert('Google Sign-In Failed', msg);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCustomSubmit = () => {
-    if (!customEmail.trim() || !customEmail.includes('@')) {
-      Alert.alert('Google Email', 'Please enter your Google Workspace email address.');
-      return;
-    }
-    const derivedRole = roleValue || (customEmail.includes('admin') || customEmail.includes('ritesh') ? 'admin' : 'doctor');
-    handleSelectAccount({
-      name: customEmail.split('@')[0],
-      email: customEmail.trim(),
-      desc: 'Custom Workspace Account',
-      role: derivedRole,
-    });
   };
 
   return (
@@ -133,7 +114,7 @@ export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={styles.card}>
-          {/* Header with Official Google Logo & Close */}
+          {/* Header with Google Logo & Close Button */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <GoogleLogo size={28} />
@@ -148,74 +129,41 @@ export const GoogleSignInModal: React.FC<GoogleSignInModalProps> = ({
             to continue to Swastik Hospital – <Text style={styles.roleHighlight}>{roleName}</Text>
           </Text>
 
-          {/* Config banner */}
-          <View style={styles.clientInfoBox}>
-            <Feather name="shield" size={13} color="#0F766E" />
-            <Text style={styles.clientInfoText} numberOfLines={1}>
-              Domain Client: {GOOGLE_CLIENT_ID.slice(0, 16)}...apps.googleusercontent.com
+          {/* Secure Information Box */}
+          <View style={styles.infoBox}>
+            <Feather name="shield" size={14} color="#0D9488" style={{ marginTop: 2 }} />
+            <Text style={styles.infoText}>
+              Signing in will prompt you to select your authorized hospital Gmail account from your device.
             </Text>
           </View>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0F766E" />
-              <Text style={styles.loadingText}>Verifying Google credentials with server...</Text>
+          {errorMessage && (
+            <View style={styles.errorBox}>
+              <Feather name="alert-circle" size={14} color="#EF4444" style={{ marginTop: 2 }} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
-          ) : (
-            <ScrollView style={styles.accountsScroll} showsVerticalScrollIndicator={false}>
-              <Text style={styles.sectionLabel}>Authorized Google Accounts:</Text>
-              {accounts.map((acc, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.accountItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectAccount(acc)}
-                >
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarInitial}>{acc.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.accountName}>{acc.name}</Text>
-                    <Text style={styles.accountEmail}>{acc.email}</Text>
-                    <Text style={styles.accountDesc}>{acc.desc}</Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color="#94A3B8" />
-                </TouchableOpacity>
-              ))}
-
-              {/* Enter custom authorized email */}
-              {showCustomInput ? (
-                <View style={styles.customBox}>
-                  <Text style={styles.inputLabel}>Enter Authorized Google Email:</Text>
-                  <TextInput
-                    style={styles.customInput}
-                    placeholder="e.g. yourname@domain.com"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={customEmail}
-                    onChangeText={setCustomEmail}
-                  />
-                  <TouchableOpacity
-                    style={styles.submitCustomBtn}
-                    activeOpacity={0.8}
-                    onPress={handleCustomSubmit}
-                  >
-                    <Text style={styles.submitCustomBtnText}>Sign In with This Account</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addAccountBtn}
-                  activeOpacity={0.7}
-                  onPress={() => setShowCustomInput(true)}
-                >
-                  <Ionicons name="person-add-outline" size={16} color="#0F766E" />
-                  <Text style={styles.addAccountText}>Use another authorized Google account</Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
           )}
+
+          {/* Google Sign In CTA Button */}
+          <TouchableOpacity
+            style={[styles.googleCtaBtn, loading && styles.googleCtaBtnDisabled]}
+            activeOpacity={0.85}
+            onPress={handleStartGoogleOAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color="#0D9488" />
+                <Text style={styles.googleCtaText}>Connecting to Google...</Text>
+              </View>
+            ) : (
+              <View style={styles.ctaContentRow}>
+                <GoogleLogo size={20} />
+                <Text style={styles.googleCtaText}>Continue with Google</Text>
+                <Feather name="arrow-right" size={16} color="#1E293B" />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
             <Text style={styles.cancelText}>Cancel</Text>
@@ -232,7 +180,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
   },
   backdrop: {
     position: 'absolute',
@@ -243,194 +191,128 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 400,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowRadius: 16,
     elevation: 8,
-    maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   logoBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
   },
   closeBtn: {
     padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 13,
     color: '#64748B',
-    marginTop: 4,
+    lineHeight: 18,
+    marginBottom: 16,
   },
   roleHighlight: {
-    color: '#0F766E',
-    fontWeight: '600',
+    color: '#0D9488',
+    fontWeight: '700',
   },
-  clientInfoBox: {
+  infoBox: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
     backgroundColor: '#F0FDFA',
     borderWidth: 1,
     borderColor: '#CCFBF1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 12,
-    marginBottom: 14,
-    gap: 6,
-  },
-  clientInfoText: {
-    fontSize: 11,
-    color: '#0F766E',
-    fontWeight: '500',
-    flex: 1,
-  },
-  loadingContainer: {
-    paddingVertical: 36,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#64748B',
-    fontSize: 13,
-  },
-  accountsScroll: {
-    maxHeight: 340,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  accountItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 10,
     padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 10,
-    gap: 12,
+    marginBottom: 16,
   },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#E0F2FE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  accountName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  accountEmail: {
+  infoText: {
+    flex: 1,
     fontSize: 12,
     color: '#0F766E',
-    marginTop: 1,
+    lineHeight: 17,
   },
-  accountDesc: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 1,
+  errorBox: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
   },
-  addAccountBtn: {
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#DC2626',
+    lineHeight: 17,
+  },
+  googleCtaBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  googleCtaBtnDisabled: {
+    opacity: 0.7,
+  },
+  ctaContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#0F766E',
-    borderStyle: 'dashed',
-    marginTop: 4,
+    gap: 10,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
-  addAccountText: {
-    fontSize: 13,
-    color: '#0F766E',
-    fontWeight: '600',
-  },
-  customBox: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  customInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  submitCustomBtn: {
-    backgroundColor: '#0F766E',
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitCustomBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+  googleCtaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   cancelBtn: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    marginTop: 12,
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#64748B',
-    fontWeight: '500',
   },
 });

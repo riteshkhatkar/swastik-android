@@ -34,13 +34,13 @@ export const ReceptionistLoginScreen: React.FC<ReceptionistLoginScreenProps> = (
   const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
 
   // Password Login State
-  const [username, setUsername] = useState('receptionist');
-  const [password, setPassword] = useState('receptionist123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // OTP Login State
-  const [otpIdentifier, setOtpIdentifier] = useState('+91 98765 43210');
+  const [otpIdentifier, setOtpIdentifier] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
