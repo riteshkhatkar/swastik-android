@@ -1,8 +1,9 @@
 // swastik-android/screens/NewConsultationScreen.tsx
-// Complete Psychiatric EMR & Clinical Consultation Workstation
-// Ported directly from Swastik Web EMR (DoctorConsultation.jsx & EMR.jsx)
+// Complete Admission-Centric Psychiatric EMR & Clinical Consultation Workstation
+// Supports: Ward Round Board, Symptoms/HPI, MSE, Diagnosis, Risk, Medications (+Stop), Treatment Plan,
+// SOAP Notes (+Sign/Lock), Vitals (+History), Lab Monitoring, Clinical Timeline, History Events, Audit, Rehab & Daily Routine
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,25 +14,48 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '../constants/theme';
 import { AppHeader } from '../components/AppHeader';
-import { patientService, clinicalApi, labApi, getApiErrorMessage } from '../services/api';
+import {
+  patientService,
+  clinicalService,
+  emrService,
+  labApi,
+  getApiErrorMessage,
+} from '../services/api';
 import { generateConsultationReportHtml, printOrSharePdf } from '../utils/pdfGenerator';
+import { useAuthStore } from '../store/authStore';
 import icd11Data from '../data/icd11Codes.json';
 import dsm5Data from '../data/dsm5Codes.json';
+
+const { width } = Dimensions.get('window');
 
 interface NewConsultationScreenProps {
   onOpenDrawer: () => void;
   initialPatient?: any;
 }
 
-type EmrTab = 'symptoms' | 'diagnosis' | 'medications' | 'treatment' | 'soap' | 'vitals';
+type WorkstationMode = 'board' | 'emr';
+type EmrTab =
+  | 'symptoms'
+  | 'mse'
+  | 'diagnosis'
+  | 'risk'
+  | 'medications'
+  | 'treatment'
+  | 'soap'
+  | 'vitals'
+  | 'labs'
+  | 'timeline'
+  | 'rehab'
+  | 'audit';
 
 const SI_OPTIONS = ['None', 'Passive', 'Active', 'Intent', 'Plan'] as const;
 
-const MSE_OPTIONS = {
+const MSE_OPTIONS: Record<string, string[]> = {
   appearance: ['Well Groomed', 'Disheveled', 'Guarded', 'Agitated', 'Unkempt'],
   psychomotor: ['Normal', 'Retarded', 'Agitated', 'Restless', 'Catatonic'],
   speech: ['Normal', 'Pressured', 'Slow', 'Slurred', 'Muted'],
@@ -48,19 +72,6 @@ const MSE_OPTIONS = {
 
 const MSE_DANGEROUS = ['Suicidal ideation', 'Homicidal ideation', 'Command AH'];
 
-const ICD_DIAGNOSES = [
-  'F32.1 Major Depressive Disorder, Moderate',
-  'F41.1 Generalized Anxiety Disorder',
-  'F20.0 Paranoid Schizophrenia',
-  'F31.1 Bipolar Affective Disorder, Current Mania',
-  'F31.3 Bipolar Affective Disorder, Current Depression',
-  'F10.2 Alcohol Dependence Syndrome',
-  'F43.1 Post-Traumatic Stress Disorder (PTSD)',
-  'F42 Obsessive-Compulsive Disorder (OCD)',
-  'F90.0 Attention-Deficit Hyperactivity Disorder (ADHD)',
-  'F00 Dementia in Alzheimer Disease',
-];
-
 const THERAPY_MODALITIES = [
   'CBT',
   'DBT',
@@ -70,26 +81,59 @@ const THERAPY_MODALITIES = [
   'Supportive Psychotherapy',
 ];
 
-const LAB_INVESTIGATIONS = [
+const OBSERVATION_LEVELS = ['Routine', 'Q15', 'Q30', '1:1', 'Special'];
+
+const COMMON_LAB_TESTS = [
   'CBC',
   'LFT',
   'KFT',
   'Thyroid Profile (TSH)',
   'Serum Lithium Level',
+  'Serum Valproate Level',
   'Lipid Profile',
   'ECG',
+  'Urine Drug Screen',
   'CT Brain',
+];
+
+const SOAP_CHECKLIST_QUESTIONS = [
+  { id: 'oriented', text: 'Oriented to time, place, and person?', isRisk: false },
+  { id: 'grooming', text: 'Appropriate grooming and hygiene?', isRisk: false },
+  { id: 'eyeContact', text: 'Normal eye contact maintained?', isRisk: false },
+  { id: 'speech', text: 'Speech coherent and normal in rate/tone?', isRisk: false },
+  { id: 'moodAffect', text: 'Mood and affect congruent?', isRisk: false },
+  { id: 'suicidal', text: 'Any suicidal ideation reported or observed?', isRisk: true },
+  { id: 'homicidal', text: 'Any homicidal ideation reported or observed?', isRisk: true },
+  { id: 'hallucinations', text: 'Any hallucinations present?', isRisk: true },
+  { id: 'delusions', text: 'Any delusions or abnormal thought content?', isRisk: true },
+  { id: 'memory', text: 'Memory and concentration intact?', isRisk: false },
+  { id: 'insight', text: 'Insight into illness present?', isRisk: false },
+  { id: 'judgment', text: 'Judgment appears intact?', isRisk: false },
 ];
 
 export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
   onOpenDrawer,
   initialPatient,
 }) => {
+  const { user } = useAuthStore();
+  const doctorName = user?.full_name || 'Dr. P. M. Chougule';
+  const doctorId = user?.id || 'dr_chougule';
+
+  // Navigation & Mode
   const [selectedPatient, setSelectedPatient] = useState<any>(initialPatient || null);
-  const [livePatients, setLivePatients] = useState<any[]>([]);
+  const [admissionId, setAdmissionId] = useState<string>(
+    initialPatient?.admission_id || initialPatient?.admissionId || ''
+  );
+  const [workstationMode, setWorkstationMode] = useState<WorkstationMode>('board');
   const [activeTab, setActiveTab] = useState<EmrTab>('symptoms');
+  const [livePatients, setLivePatients] = useState<any[]>([]);
+  const [resolvingAdmission, setResolvingAdmission] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSessionLocked, setIsSessionLocked] = useState(false);
+
+  // Ward Board Summary & Timeline Data
+  const [wardSummary, setWardSummary] = useState<any>(null);
+  const [clinicalTimeline, setClinicalTimeline] = useState<any[]>([]);
 
   // 1. Symptoms & HPI State
   const [chiefComplaint, setChiefComplaint] = useState('');
@@ -101,144 +145,263 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
   const [suicidalIdeation, setSuicidalIdeation] = useState('None');
   const [selfHarmHistory, setSelfHarmHistory] = useState('');
   const [harmToOthersRisk, setHarmToOthersRisk] = useState('');
+
+  // 2. MSE State
   const [mseFindings, setMseFindings] = useState<Record<string, string[]>>({});
 
-  // 2. Diagnosis & Risk State
+  // 3. Diagnosis & Risk State
   const [diagSystem, setDiagSystem] = useState<'icd11' | 'dsm5'>('icd11');
   const [diagSearch, setDiagSearch] = useState('');
   const [diagnosis, setDiagnosis] = useState('F32.1 Major Depressive Disorder, Moderate');
+  const [differential, setDifferential] = useState<string[]>([]);
   const [severity, setSeverity] = useState('Moderate');
-  const [suicideRisk, setSuicideRisk] = useState<'Low' | 'Moderate' | 'High' | 'Critical'>('Low');
-  const [selfHarmRisk, setSelfHarmRisk] = useState<'Low' | 'Moderate' | 'High' | 'Critical'>('Low');
-  const [aggressionRisk, setAggressionRisk] = useState<'Low' | 'Moderate' | 'High' | 'Critical'>('Low');
+  const [specifier, setSpecifier] = useState('');
+  const [bioPsychoSocial, setBioPsychoSocial] = useState('');
+  const [riskToSelf, setRiskToSelf] = useState(30);
+  const [riskToOthers, setRiskToOthers] = useState(15);
+  const [riskToVulnerability, setRiskToVulnerability] = useState(25);
+  const [safetyPlanRequired, setSafetyPlanRequired] = useState(false);
 
-  const activeDataset: Array<{ code: string; title: string }> = diagSystem === 'icd11' ? (icd11Data as any) : (dsm5Data as any);
-  const filteredDiagnoses = React.useMemo(() => {
+  // 4. Medications State
+  const [medicationsList, setMedicationsList] = useState<any[]>([]);
+  const [showAddMedModal, setShowAddMedModal] = useState(false);
+  const [newMedDrug, setNewMedDrug] = useState('');
+  const [newMedDose, setNewMedDose] = useState('10mg');
+  const [newMedFreq, setNewMedFreq] = useState('OD');
+  const [newMedRoute, setNewMedRoute] = useState('PO');
+  const [newMedDuration, setNewMedDuration] = useState('30 days');
+
+  // 5. Treatment Plan State
+  const [shortTermGoals, setShortTermGoals] = useState('');
+  const [longTermGoals, setLongTermGoals] = useState('');
+  const [selectedTherapies, setSelectedTherapies] = useState<string[]>(['CBT']);
+  const [observationLevel, setObservationLevel] = useState('Routine');
+  const [dischargeCriteria, setDischargeCriteria] = useState('');
+  const [emergencyContacts, setEmergencyContacts] = useState('');
+
+  // 6. SOAP Notes State
+  const [sessionNotesList, setSessionNotesList] = useState<any[]>([]);
+  const [soapSubjective, setSoapSubjective] = useState('');
+  const [soapObjective, setSoapObjective] = useState('');
+  const [soapAssessment, setSoapAssessment] = useState('');
+  const [soapPlan, setSoapPlan] = useState('');
+  const [soapRoleTag, setSoapRoleTag] = useState('Psychiatrist');
+  const [soapChecklist, setSoapChecklist] = useState<Record<string, string>>({});
+
+  // 7. Vitals State
+  const [vitalsList, setVitalsList] = useState<any[]>([]);
+  const [vitalBpSys, setVitalBpSys] = useState('120');
+  const [vitalBpDia, setVitalBpDia] = useState('80');
+  const [vitalHr, setVitalHr] = useState('74');
+  const [vitalTemp, setVitalTemp] = useState('36.8');
+  const [vitalSpo2, setVitalSpo2] = useState('98');
+  const [vitalRr, setVitalRr] = useState('16');
+  const [vitalWeight, setVitalWeight] = useState('68');
+  const [vitalSleep, setVitalSleep] = useState('7');
+  const [vitalAppetite, setVitalAppetite] = useState('Normal');
+
+  // 8. Labs & Monitoring State
+  const [labMonitoringList, setLabMonitoringList] = useState<any[]>([]);
+  const [patientLabOrders, setPatientLabOrders] = useState<any[]>([]);
+  const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+  const [selectedLabTests, setSelectedLabTests] = useState<string[]>(['CBC']);
+  const [labPriority, setLabPriority] = useState('Routine');
+  const [labClinicalNotes, setLabClinicalNotes] = useState('');
+
+  // 9. History Events & Audit State
+  const [historyEventsList, setHistoryEventsList] = useState<any[]>([]);
+  const [emrAuditList, setEmrAuditList] = useState<any[]>([]);
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newEventDesc, setNewEventDesc] = useState('');
+
+  // 10. Rehab & Daily Routine State
+  const [rehabType, setRehabType] = useState('Occupational');
+  const [rehabNotes, setRehabNotes] = useState('');
+  const [routineNotes, setRoutineNotes] = useState('');
+
+  // Quick Action Modals for Ward Round Board
+  const [showQuickNoteModal, setShowQuickNoteModal] = useState(false);
+  const [quickNoteForm, setQuickNoteForm] = useState({ s: '', o: '', a: '', p: '' });
+  const [showQuickVitalsModal, setShowQuickVitalsModal] = useState(false);
+  const [quickVitalsForm, setQuickVitalsForm] = useState({ bp: '120/80', hr: '72', temp: '37.0', spo2: '98' });
+  const [showDischargeModal, setShowDischargeModal] = useState(false);
+  const [dischargeForm, setDischargeForm] = useState({ condition: 'Stable', instructions: '', followUp: '1 Week' });
+
+  // Diagnosis selector dataset
+  const activeDataset: Array<{ code: string; title: string }> =
+    diagSystem === 'icd11' ? (icd11Data as any) : (dsm5Data as any);
+  const filteredDiagnoses = useMemo(() => {
     if (!diagSearch.trim()) return activeDataset.slice(0, 10);
     const q = diagSearch.toLowerCase();
-    return activeDataset.filter(
-      (d) =>
-        (d.code || '').toLowerCase().includes(q) ||
-        (d.title || '').toLowerCase().includes(q)
-    ).slice(0, 20);
+    return activeDataset
+      .filter((d) => (d.code || '').toLowerCase().includes(q) || (d.title || '').toLowerCase().includes(q))
+      .slice(0, 20);
   }, [activeDataset, diagSearch]);
 
-  // 3. Medications (Rx)
-  const [medications, setMedications] = useState<
-    Array<{ name: string; dose: string; timing: string; duration: string; instructions: string }>
-  >([
-    {
-      name: 'Tab. Escitalopram 10mg',
-      dose: '1-0-0',
-      timing: 'Morning after food',
-      duration: '30 days',
-      instructions: 'Take regularly at breakfast',
-    },
-    {
-      name: 'Tab. Clonazepam 0.5mg',
-      dose: '0-0-1',
-      timing: 'At bedtime',
-      duration: '15 days',
-      instructions: 'For sleep; avoid driving',
-    },
-  ]);
-  const [showAddMedModal, setShowAddMedModal] = useState(false);
-  const [newMedName, setNewMedName] = useState('');
-  const [newMedDose, setNewMedDose] = useState('1-0-1');
-  const [newMedTiming, setNewMedTiming] = useState('After food');
-  const [newMedDuration, setNewMedDuration] = useState('30 days');
-  const [newMedInstructions, setNewMedInstructions] = useState('');
-
-  // 4. Treatment Plan State
-  const [pharmacotherapyPlan, setPharmacotherapyPlan] = useState('');
-  const [selectedTherapies, setSelectedTherapies] = useState<string[]>(['CBT']);
-  const [selectedLabs, setSelectedLabs] = useState<string[]>(['CBC', 'Thyroid Profile (TSH)']);
-  const [followUp, setFollowUp] = useState('2 Weeks');
-
-  // 5. SOAP Notes
-  const [soapS, setSoapS] = useState('');
-  const [soapO, setSoapO] = useState('');
-  const [soapA, setSoapA] = useState('');
-  const [soapP, setSoapP] = useState('');
-
-  // 6. Vitals State
-  const [bp, setBp] = useState('120/80');
-  const [pulse, setPulse] = useState('72');
-  const [temp, setTemp] = useState('98.6');
-  const [weight, setWeight] = useState('68');
-  const [height, setHeight] = useState('170');
-  const [spo2, setSpo2] = useState('98');
-
+  // Initial Patients Registry Loader
   useEffect(() => {
     loadPatients();
   }, []);
 
-  useEffect(() => {
-    if (selectedPatient) {
-      loadPatientEmr(selectedPatient.uhid || selectedPatient.id);
-    }
-  }, [selectedPatient]);
-
   const loadPatients = async () => {
     try {
       const res = await patientService.getPatients();
-      if (res && Array.isArray(res) && res.length > 0) {
+      if (Array.isArray(res) && res.length > 0) {
         setLivePatients(res);
       }
-    } catch {
-      // fallback
+    } catch (err) {
+      console.log('Error loading patient list:', err);
     }
   };
 
-  const loadPatientEmr = async (uhid: string) => {
+  // Admission-Centric Lifecycle Resolution
+  const resolveAndLoadPatient = useCallback(
+    async (patient: any) => {
+      const uhid = patient.uhid || patient.patient_id || patient.id;
+      if (!uhid) return;
+
+      setSelectedPatient(patient);
+      setResolvingAdmission(true);
+
+      try {
+        let aid = patient.admission_id || patient.admissionId;
+        if (!aid) {
+          aid = await emrService.resolveActiveAdmission(uhid, patient.name || patient.patient_name, doctorName);
+        }
+        setAdmissionId(aid);
+
+        // Check active session lock status
+        try {
+          const sessions = await clinicalService.getActiveSessions();
+          const locked = sessions.some((s) => s.patient_id === uhid || s.uhid === uhid);
+          setIsSessionLocked(locked);
+        } catch {}
+
+        // Load all EMR data for this patient and active admission
+        await loadAllEmrData(uhid, aid);
+      } catch (err: any) {
+        Alert.alert('Admission Resolution Error', getApiErrorMessage(err));
+      } finally {
+        setResolvingAdmission(false);
+      }
+    },
+    [doctorName]
+  );
+
+  useEffect(() => {
+    if (initialPatient) {
+      resolveAndLoadPatient(initialPatient);
+    }
+  }, [initialPatient, resolveAndLoadPatient]);
+
+  const loadAllEmrData = async (uhid: string, aid: string) => {
     try {
-      const [emrCtx, mseData, diagData, riskData, rxData, vitalsData] = await Promise.all([
-        clinicalApi.getEmrContext(uhid).catch(() => null),
-        clinicalApi.getMse(uhid).catch(() => null),
-        clinicalApi.getDiagnosis(uhid).catch(() => null),
-        clinicalApi.getRisk(uhid).catch(() => null),
-        clinicalApi.getPrescriptions({ uhid }).catch(() => null),
-        clinicalApi.listVitals(uhid).catch(() => null),
+      const [
+        symptoms,
+        mse,
+        diag,
+        risk,
+        meds,
+        treatment,
+        notes,
+        vitals,
+        labs,
+        orders,
+        timeline,
+        summary,
+        history,
+        audit,
+      ] = await Promise.all([
+        emrService.getSymptomsHpi(uhid, aid).catch(() => null),
+        emrService.getMse(uhid, aid).catch(() => null),
+        emrService.getDiagnosis(uhid, aid).catch(() => null),
+        emrService.getRisk(uhid, aid).catch(() => null),
+        emrService.listMedications(uhid, aid).catch(() => []),
+        emrService.getTreatmentPlan(uhid, aid).catch(() => null),
+        emrService.listSessionNotes(uhid, aid).catch(() => []),
+        emrService.listVitals(uhid, aid).catch(() => []),
+        emrService.listLabMonitoring(uhid, aid).catch(() => []),
+        labApi.getLabTestRequests({ patient_id: uhid }).catch(() => []),
+        emrService.getClinicalTimeline(uhid, aid).catch(() => []),
+        emrService.getWardSummary(uhid, aid).catch(() => null),
+        emrService.listHistoryEvents(uhid).catch(() => []),
+        emrService.getEmrAudit('admission', aid).catch(() => []),
       ]);
 
-      if (mseData && mseData.mse) {
-        setMseFindings(mseData.mse);
+      if (symptoms) {
+        setChiefComplaint(symptoms.chief_complaint || '');
+        setOnset(symptoms.onset || '');
+        setDuration(symptoms.duration || '');
+        setPrecipitatingFactors(symptoms.precipitating_factors || '');
+        setPerpetuatingFactors(symptoms.perpetuating_factors || '');
+        setHpi(symptoms.hpi || '');
+        setSuicidalIdeation(symptoms.suicidal_ideation || 'None');
+        setSelfHarmHistory(symptoms.self_harm_history || '');
+        setHarmToOthersRisk(symptoms.harm_to_others_risk || '');
       }
-      if (diagData && diagData.diagnosis) {
-        setDiagnosis(diagData.diagnosis);
-        if (diagData.severity) setSeverity(diagData.severity);
+
+      if (mse && mse.appearance) {
+        setMseFindings({
+          appearance: mse.appearance || [],
+          psychomotor: mse.psychomotor || [],
+          speech: mse.speech || [],
+          mood: mse.mood || [],
+          affect: mse.affect || [],
+          thoughtProcess: mse.thought_process || [],
+          thoughtContent: mse.thought_content || [],
+          perception: mse.perception || [],
+          cognition: mse.cognition || [],
+          insight: mse.insight || [],
+          judgment: mse.judgment || [],
+          attention: mse.attention || [],
+        });
       }
-      if (riskData) {
-        if (riskData.suicide) setSuicideRisk(riskData.suicide);
-        if (riskData.selfHarm) setSelfHarmRisk(riskData.selfHarm);
-        if (riskData.aggression) setAggressionRisk(riskData.aggression);
+
+      if (diag && (diag.primary_diagnosis || diag.diagnosis)) {
+        setDiagnosis(diag.primary_diagnosis || diag.diagnosis);
+        if (Array.isArray(diag.differential)) setDifferential(diag.differential);
+        if (diag.severity) setSeverity(diag.severity);
+        if (diag.specifier) setSpecifier(diag.specifier);
+        if (diag.formulation_bio_psycho_social) setBioPsychoSocial(diag.formulation_bio_psycho_social);
       }
-      if (rxData && Array.isArray(rxData) && rxData.length > 0) {
-        const latestRx = rxData[0];
-        if (Array.isArray(latestRx.medicines) && latestRx.medicines.length > 0) {
-          setMedications(latestRx.medicines);
-        }
+
+      if (risk) {
+        setRiskToSelf(risk.suicide_risk ?? risk.risk_to_self ?? 30);
+        setRiskToOthers(risk.violence_risk ?? risk.risk_to_others ?? 15);
+        setRiskToVulnerability(risk.elopement_risk ?? risk.risk_to_vulnerability ?? 25);
+        setSafetyPlanRequired(Boolean(risk.safety_plan_required));
       }
-      if (vitalsData && Array.isArray(vitalsData) && vitalsData.length > 0) {
-        const latestV = vitalsData[0];
-        if (latestV.bp) setBp(latestV.bp);
-        if (latestV.pulse) setPulse(String(latestV.pulse));
-        if (latestV.temp) setTemp(String(latestV.temp));
-        if (latestV.spo2) setSpo2(String(latestV.spo2));
-        if (latestV.weight) setWeight(String(latestV.weight));
-        if (latestV.height) setHeight(String(latestV.height));
+
+      if (Array.isArray(meds)) setMedicationsList(meds);
+      if (Array.isArray(notes)) setSessionNotesList(notes);
+      if (Array.isArray(vitals)) setVitalsList(vitals);
+      if (Array.isArray(labs)) setLabMonitoringList(labs);
+      if (Array.isArray(orders)) setPatientLabOrders(orders);
+      if (Array.isArray(timeline)) setClinicalTimeline(timeline);
+      if (summary) setWardSummary(summary);
+      if (Array.isArray(history)) setHistoryEventsList(history);
+      if (Array.isArray(audit)) setEmrAuditList(audit);
+
+      if (treatment) {
+        setShortTermGoals(Array.isArray(treatment.short_term_goals) ? treatment.short_term_goals.join('\n') : '');
+        setLongTermGoals(Array.isArray(treatment.long_term_goals) ? treatment.long_term_goals.join('\n') : '');
+        if (Array.isArray(treatment.therapy_modalities)) setSelectedTherapies(treatment.therapy_modalities);
+        if (treatment.observation_level) setObservationLevel(treatment.observation_level);
+        setDischargeCriteria(Array.isArray(treatment.discharge_criteria) ? treatment.discharge_criteria.join('\n') : '');
+        setEmergencyContacts(Array.isArray(treatment.emergency_contacts) ? treatment.emergency_contacts.join('\n') : '');
       }
     } catch (err) {
-      console.log('Error loading patient EMR context:', err);
+      console.log('Error populating EMR records:', err);
     }
   };
 
+  // Toggle Chip Selections
   const handleToggleMse = (category: string, value: string) => {
     setMseFindings((prev) => {
-      const current = prev[category] || [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
+      const cur = prev[category] || [];
+      const updated = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value];
       return { ...prev, [category]: updated };
     });
   };
@@ -249,53 +412,47 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
     );
   };
 
-  const handleToggleLab = (test: string) => {
-    setSelectedLabs((prev) =>
+  const handleToggleLabOrder = (test: string) => {
+    setSelectedLabTests((prev) =>
       prev.includes(test) ? prev.filter((t) => t !== test) : [...prev, test]
     );
   };
 
-  const handleAddMedication = () => {
-    if (!newMedName.trim()) {
-      Alert.alert('Required', 'Please enter medicine name.');
-      return;
-    }
-    setMedications((prev) => [
-      ...prev,
-      {
-        name: newMedName.trim(),
-        dose: newMedDose.trim(),
-        timing: newMedTiming.trim(),
-        duration: newMedDuration.trim(),
-        instructions: newMedInstructions.trim(),
-      },
-    ]);
-    setNewMedName('');
-    setNewMedInstructions('');
-    setShowAddMedModal(false);
-  };
-
-  const handleRemoveMedication = (index: number) => {
-    setMedications((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const calculateBmi = () => {
-    const w = parseFloat(weight);
-    const h = parseFloat(height) / 100;
-    if (w > 0 && h > 0) {
-      return (w / (h * h)).toFixed(1);
-    }
-    return '23.5';
-  };
-
-  const handleSaveConsultation = async () => {
+  // Session Lock Toggle
+  const handleToggleSessionLock = async () => {
     if (!selectedPatient) return;
+    const uhid = selectedPatient.uhid || selectedPatient.id;
+    try {
+      if (isSessionLocked) {
+        await clinicalService.endSession(uhid);
+        setIsSessionLocked(false);
+        Alert.alert('Session Released', 'Patient record unlocked for other clinicians.');
+      } else {
+        await clinicalService.startSession(uhid);
+        setIsSessionLocked(true);
+        Alert.alert('Session Locked', 'Patient record locked to you for this consultation.');
+      }
+    } catch (err: any) {
+      Alert.alert('Lock Action Notice', getApiErrorMessage(err));
+    }
+  };
+
+  // Individual Tab Save Actions with Guaranteed 2xx Backend Verification
+  const saveSymptomsHpi = async () => {
+    if (!selectedPatient || !admissionId) return;
     setSaving(true);
     try {
-      const uhid = selectedPatient.uhid || selectedPatient.id || 'SWH001';
-      const payload = {
-        patient_name: selectedPatient.name,
-        uhid: uhid,
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      const summaryText = [
+        chiefComplaint && `CC: ${chiefComplaint}`,
+        onset && `Onset: ${onset}`,
+        duration && `Duration: ${duration}`,
+        hpi && `HPI: ${hpi}`,
+        suicidalIdeation !== 'None' && `SI: ${suicidalIdeation}`,
+      ].filter(Boolean).join('. ');
+
+      await emrService.saveSymptomsHpi(uhid, {
+        admission_id: admissionId,
         chief_complaint: chiefComplaint,
         onset,
         duration,
@@ -305,84 +462,11 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
         suicidal_ideation: suicidalIdeation,
         self_harm_history: selfHarmHistory,
         harm_to_others_risk: harmToOthersRisk,
-        mse: mseFindings,
-        diagnosis,
-        severity,
-        risk: { suicide: suicideRisk, selfHarm: selfHarmRisk, aggression: aggressionRisk },
-        medications,
-        treatment_plan: {
-          pharmacotherapy: pharmacotherapyPlan,
-          modalities: selectedTherapies,
-          lab_orders: selectedLabs,
-          follow_up: followUp,
-        },
-        soap_notes: { s: soapS, o: soapO, a: soapA, p: soapP },
-        vitals: { bp, pulse, temp, weight, height, bmi: calculateBmi(), spo2 },
-        consultation_date: new Date().toISOString(),
-      };
+        summary: summaryText,
+      }, doctorName);
 
-      // Resolve active admission_id for this patient (required for all backend EMR records)
-      let admissionId = selectedPatient.admission_id || selectedPatient.id;
-      try {
-        const activeAdm = await clinicalApi.getActiveAdmission(uhid);
-        if (activeAdm && (activeAdm.admission_id || activeAdm.id)) {
-          admissionId = activeAdm.admission_id || activeAdm.id;
-        } else if (!admissionId) {
-          const newAdm = await clinicalApi.createAdmission(uhid, {
-            admission_reason: 'OPD Psychiatric Consultation',
-            clinical_status: 'Under Observation',
-          }, 'Dr. P. M. Chougule');
-          admissionId = newAdm?.admission_id || newAdm?.id;
-        }
-      } catch (admErr) {
-        console.log('Admission resolution note:', admErr);
-        if (!admissionId) admissionId = `ADM-${uhid}`;
-      }
-
-      await Promise.all([
-        clinicalApi.saveConsultation(uhid, { ...payload, admission_id: admissionId }),
-        clinicalApi.saveMse(uhid, { admission_id: admissionId, mse: mseFindings }),
-        clinicalApi.saveDiagnosis(uhid, { admission_id: admissionId, diagnosis, severity }),
-        clinicalApi.saveRisk(uhid, {
-          admission_id: admissionId,
-          suicide: suicideRisk,
-          selfHarm: selfHarmRisk,
-          aggression: aggressionRisk,
-        }),
-        clinicalApi.savePrescription(uhid, {
-          admission_id: admissionId,
-          medicines: medications,
-          diagnosis,
-        }),
-        clinicalApi.addVitals(uhid, {
-          admission_id: admissionId,
-          bp,
-          pulse,
-          temp,
-          weight,
-          height,
-          spo2,
-        }),
-      ]);
-
-      if (selectedLabs && selectedLabs.length > 0) {
-        try {
-          await labApi.createLabTestRequest({
-            patient_id: uhid,
-            doctor_id: 'dr_chougule',
-            admission_id: admissionId,
-            tests_ordered: selectedLabs,
-            clinical_notes: `Diagnosis: ${diagnosis}. Severity: ${severity}`,
-          });
-        } catch (labErr) {
-          console.log('Lab sync notice:', labErr);
-        }
-      }
-
-      Alert.alert(
-        'EMR Record Saved',
-        `Clinical consultation and psychiatric records synced with live backend for ${selectedPatient.name} (${selectedPatient.uhid}).`
-      );
+      Alert.alert('Saved ✅', 'Symptoms & HPI saved to server database.');
+      loadAllEmrData(uhid, admissionId);
     } catch (err: any) {
       Alert.alert('Save Failed', getApiErrorMessage(err));
     } finally {
@@ -390,79 +474,449 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
     }
   };
 
-  const handlePrintEmrReport = async () => {
+  const saveMse = async () => {
+    if (!selectedPatient || !admissionId) return;
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      const dangerous: string[] = [];
+      Object.values(mseFindings).flat().forEach((val) => {
+        if (MSE_DANGEROUS.some((d) => val.includes(d))) dangerous.push(val);
+      });
+
+      await emrService.saveMse(uhid, {
+        admission_id: admissionId,
+        appearance: mseFindings.appearance || [],
+        psychomotor: mseFindings.psychomotor || [],
+        speech: mseFindings.speech || [],
+        mood: mseFindings.mood || [],
+        affect: mseFindings.affect || [],
+        thought_process: mseFindings.thoughtProcess || [],
+        thought_content: mseFindings.thoughtContent || [],
+        perception: mseFindings.perception || [],
+        cognition: mseFindings.cognition || [],
+        insight: mseFindings.insight || [],
+        judgment: mseFindings.judgment || [],
+        attention: mseFindings.attention || [],
+        dangerous_flags: dangerous,
+      }, doctorName);
+
+      Alert.alert('Saved ✅', 'Mental Status Examination recorded in live database.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDiagnosisAndRisk = async () => {
+    if (!selectedPatient || !admissionId) return;
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+
+      await Promise.all([
+        emrService.saveDiagnosis(uhid, {
+          admission_id: admissionId,
+          primary_diagnosis: diagnosis,
+          differential,
+          severity,
+          specifier,
+          system_used: diagSystem,
+          formulation_bio_psycho_social: bioPsychoSocial,
+        }, doctorName),
+        emrService.saveRisk(uhid, {
+          admission_id: admissionId,
+          risk_to_self: riskToSelf,
+          risk_to_others: riskToOthers,
+          risk_to_vulnerability: riskToVulnerability,
+          suicide_risk: riskToSelf,
+          violence_risk: riskToOthers,
+          elopement_risk: riskToVulnerability,
+          safety_plan_required: safetyPlanRequired,
+        }, doctorName),
+      ]);
+
+      Alert.alert('Saved ✅', 'Diagnosis and Risk Assessment synchronized with server.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddMedication = async () => {
+    if (!selectedPatient || !admissionId || !newMedDrug.trim()) {
+      Alert.alert('Required', 'Please enter medicine name.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      await emrService.addMedication(uhid, {
+        admission_id: admissionId,
+        drug_name: newMedDrug.trim(),
+        dose: newMedDose.trim(),
+        frequency: newMedFreq.trim(),
+        route: newMedRoute.trim(),
+        duration: newMedDuration.trim(),
+        start_date: todayStr,
+        prescribing_doctor_name: doctorName,
+        status: 'Active',
+      }, doctorName);
+
+      // Also sync to prescription registry
+      clinicalService.savePrescription(uhid, {
+        admission_id: admissionId,
+        medicines: [{
+          name: newMedDrug.trim(),
+          dose: newMedDose.trim(),
+          timing: newMedFreq.trim(),
+          duration: newMedDuration.trim(),
+        }],
+        diagnosis,
+      }).catch(() => null);
+
+      setShowAddMedModal(false);
+      setNewMedDrug('');
+      Alert.alert('Prescription Saved ✅', `Added ${newMedDrug} to patient active regimen.`);
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Add Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStopMedication = async (medId: string, drugName: string) => {
+    if (!medId) return;
+    Alert.alert(
+      'Stop Medication',
+      `Are you sure you want to discontinue ${drugName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discontinue',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const todayStr = new Date().toISOString().split('T')[0];
+              await emrService.updateMedication(medId, {
+                status: 'Stopped',
+                end_date: todayStr,
+              }, doctorName);
+              Alert.alert('Medication Stopped', `${drugName} marked as discontinued.`);
+              if (selectedPatient && admissionId) loadAllEmrData(selectedPatient.uhid, admissionId);
+            } catch (err: any) {
+              Alert.alert('Update Failed', getApiErrorMessage(err));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const saveTreatmentPlan = async () => {
+    if (!selectedPatient || !admissionId) return;
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await emrService.saveTreatmentPlan(uhid, {
+        admission_id: admissionId,
+        short_term_goals: shortTermGoals.split('\n').filter(Boolean),
+        long_term_goals: longTermGoals.split('\n').filter(Boolean),
+        therapy_modalities: selectedTherapies,
+        observation_level: observationLevel,
+        discharge_criteria: dischargeCriteria.split('\n').filter(Boolean),
+        emergency_contacts: emergencyContacts.split('\n').filter(Boolean),
+      }, doctorName);
+
+      Alert.alert('Saved ✅', 'Comprehensive treatment plan saved to server.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSoapNote = async (shouldSign: boolean = false) => {
+    if (!selectedPatient || !admissionId) return;
+    if (!soapSubjective.trim() && !soapPlan.trim()) {
+      Alert.alert('Required', 'Please fill in subjective observations and plan.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      const objectiveJson = JSON.stringify({
+        vitals: { bp: `${vitalBpSys}/${vitalBpDia}`, pulse: vitalHr, temp: vitalTemp },
+        checklist: soapChecklist,
+        customObservations: soapObjective,
+      });
+
+      await emrService.createSessionNote(uhid, {
+        admission_id: admissionId,
+        session_type: 'Clinical Progress Round',
+        subjective: soapSubjective,
+        objective: objectiveJson,
+        assessment: soapAssessment,
+        plan: soapPlan,
+        role_tag: soapRoleTag,
+        draft: !shouldSign,
+        signed: shouldSign,
+        signed_at: shouldSign ? new Date().toISOString() : null,
+        signed_by: shouldSign ? doctorName : null,
+      }, doctorName);
+
+      Alert.alert(
+        shouldSign ? 'Note Signed & Locked ✅' : 'Draft Note Saved ✅',
+        shouldSign
+          ? 'Clinical SOAP note officially signed. Note will become read-only.'
+          : 'Draft note saved. You can continue editing within 24 hours.'
+      );
+
+      setSoapSubjective('');
+      setSoapAssessment('');
+      setSoapPlan('');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Note Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRecordVitals = async () => {
+    if (!selectedPatient || !admissionId) return;
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await emrService.addVitals(uhid, {
+        admission_id: admissionId,
+        bp_systolic: parseInt(vitalBpSys, 10) || null,
+        bp_diastolic: parseInt(vitalBpDia, 10) || null,
+        hr: parseInt(vitalHr, 10) || null,
+        temp: parseFloat(vitalTemp) || null,
+        spo2: parseInt(vitalSpo2, 10) || null,
+        rr: parseInt(vitalRr, 10) || null,
+        weight: parseFloat(vitalWeight) || null,
+        sleep_hours: parseFloat(vitalSleep) || null,
+        appetite: vitalAppetite,
+      }, doctorName);
+
+      Alert.alert('Vitals Recorded ✅', 'Patient vitals saved to database.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOrderLabInvestigations = async () => {
+    if (!selectedPatient || selectedLabTests.length === 0) {
+      Alert.alert('Required', 'Please select at least one lab test.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await labApi.createLabTestRequest({
+        patient_id: uhid,
+        doctor_id: doctorId,
+        admission_id: admissionId || undefined,
+        tests_ordered: selectedLabTests,
+        clinical_notes: labClinicalNotes || `Priority: ${labPriority}`,
+      });
+
+      setShowOrderLabModal(false);
+      setLabClinicalNotes('');
+      Alert.alert('Lab Request Created ✅', `${selectedLabTests.length} tests ordered for clinical pathology.`);
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Order Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddHistoryEvent = async () => {
+    if (!selectedPatient || !newEventTitle.trim()) {
+      Alert.alert('Required', 'Please enter event title.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await emrService.addHistoryEvent(uhid, {
+        event_type: 'Clinical Milestone',
+        date: newEventDate,
+        description: `${newEventTitle.trim()}: ${newEventDesc.trim()}`,
+      }, doctorName);
+
+      setShowAddEventModal(false);
+      setNewEventTitle('');
+      setNewEventDesc('');
+      Alert.alert('Event Recorded ✅', 'Event added to patient lifetime clinical timeline.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Add Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRehabAndRoutine = async () => {
+    if (!selectedPatient) return;
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await Promise.all([
+        clinicalService.saveRehabData(uhid, rehabType, { notes: rehabNotes, date: new Date().toISOString() }),
+        clinicalService.saveDailyRoutine(uhid, { routine: routineNotes, date: new Date().toISOString() }),
+      ]);
+      Alert.alert('Rehab & Routine Saved ✅', 'Patient rehabilitation and schedule updated.');
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Quick Action Handlers for Ward Round Board
+  const handleQuickNoteSubmit = async () => {
+    if (!quickNoteForm.s && !quickNoteForm.p) {
+      Alert.alert('Required', 'Please provide subjective observations and plan.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      await emrService.createSessionNote(uhid, {
+        admission_id: admissionId,
+        session_type: 'Ward Round Note',
+        subjective: quickNoteForm.s,
+        objective: quickNoteForm.o,
+        assessment: quickNoteForm.a,
+        plan: quickNoteForm.p,
+        role_tag: 'Medical Doctor',
+        draft: false,
+        signed: true,
+        signed_at: new Date().toISOString(),
+        signed_by: doctorName,
+      }, doctorName);
+
+      setShowQuickNoteModal(false);
+      setQuickNoteForm({ s: '', o: '', a: '', p: '' });
+      Alert.alert('Note Saved ✅', 'Rounding note added to inpatient log.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleQuickVitalsSubmit = async () => {
+    setSaving(true);
+    try {
+      const uhid = selectedPatient.uhid || selectedPatient.id;
+      const bpParts = quickVitalsForm.bp.split('/');
+      await emrService.addVitals(uhid, {
+        admission_id: admissionId,
+        bp_systolic: parseInt(bpParts[0], 10) || 120,
+        bp_diastolic: parseInt(bpParts[1], 10) || 80,
+        hr: parseInt(quickVitalsForm.hr, 10) || 72,
+        temp: parseFloat(quickVitalsForm.temp) || 37.0,
+        spo2: parseInt(quickVitalsForm.spo2, 10) || 98,
+      }, doctorName);
+
+      setShowQuickVitalsModal(false);
+      Alert.alert('Vitals Recorded ✅', 'Patient vitals updated in ward pulse.');
+      loadAllEmrData(uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Save Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleQuickDischargeSubmit = async () => {
+    setSaving(true);
+    try {
+      await emrService.updateEmrAdmission(admissionId, {
+        clinical_status: 'Ready for Discharge',
+        discharge_condition: dischargeForm.condition,
+        discharge_instructions: dischargeForm.instructions,
+        follow_up_instructions: dischargeForm.followUp,
+      }, doctorName);
+
+      setShowDischargeModal(false);
+      Alert.alert('Recommendation Logged ✅', 'Patient marked ready for discharge.');
+      if (selectedPatient) loadAllEmrData(selectedPatient.uhid, admissionId);
+    } catch (err: any) {
+      Alert.alert('Action Failed', getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Comprehensive EMR PDF Print
+  const handlePrintFullReport = async () => {
     if (!selectedPatient) return;
     try {
       const html = generateConsultationReportHtml({
-        patientName: selectedPatient.name,
-        uhid: selectedPatient.uhid || 'SWH001',
+        patientName: selectedPatient.name || selectedPatient.patient_name,
+        uhid: selectedPatient.uhid || selectedPatient.id,
         age: selectedPatient.age || 32,
         gender: selectedPatient.gender || 'General',
         date: new Date().toLocaleDateString('en-GB'),
-        doctorName: 'Dr. P. M. Chougule',
+        doctorName: doctorName,
         chiefComplaints: chiefComplaint || 'Psychiatric evaluation and review.',
         hpi,
         suicidalIdeation,
         mseFindings,
         diagnosis,
         severity,
-        riskLevels: { suicide: suicideRisk, selfHarm: selfHarmRisk, aggression: aggressionRisk },
-        vitals: { bp, pulse, temp, weight, bmi: calculateBmi() },
-        medicines: medications,
+        riskLevels: { suicide: riskToSelf > 50 ? 'High' : 'Moderate', selfHarm: 'Low', aggression: 'Low' },
+        vitals: { bp: `${vitalBpSys}/${vitalBpDia}`, pulse: vitalHr, temp: vitalTemp, weight: vitalWeight, bmi: '23.4' },
+        medicines: medicationsList.map((m) => ({
+          name: m.drug_name || m.name,
+          dose: m.dose,
+          timing: m.frequency || m.timing,
+          duration: m.duration,
+        })),
         treatmentPlan: {
-          pharmacotherapy: pharmacotherapyPlan,
+          pharmacotherapy: 'Continue current medications',
           modalities: selectedTherapies,
-          labOrders: selectedLabs,
-          followUp,
+          labOrders: selectedLabTests,
+          followUp: '2 Weeks',
         },
-        soapNotes: { s: soapS, o: soapO, a: soapA, p: soapP },
+        soapNotes: { s: soapSubjective, o: soapObjective, a: soapAssessment, p: soapPlan },
       });
-      await printOrSharePdf(html, `EMR_Report_${selectedPatient.uhid}`);
+      await printOrSharePdf(html, `EMR_Clinical_Record_${selectedPatient.uhid}`);
     } catch (err: any) {
-      Alert.alert('Report Error', err?.message || 'Unable to print EMR report.');
+      Alert.alert('Report Error', err?.message || 'Could not print report.');
     }
   };
-
-  const handleToggleSessionLock = async () => {
-    if (!selectedPatient) return;
-    try {
-      const pid = selectedPatient.uhid || selectedPatient.id;
-      if (isSessionLocked) {
-        await clinicalApi.endSession(pid);
-        setIsSessionLocked(false);
-        Alert.alert('Session Unlocked', 'Patient record unlocked for other clinicians.');
-      } else {
-        await clinicalApi.startSession(pid);
-        setIsSessionLocked(true);
-        Alert.alert('Session Active', 'Patient record is locked to you for this consultation.');
-      }
-    } catch {
-      setIsSessionLocked(!isSessionLocked);
-    }
-  };
-
-  const fallbackPatients = [
-    { id: '1', name: 'Prerana Suryawanshi', uhid: 'SWASTIK-2026-00001', age: 35, gender: 'Female' },
-    { id: '2', name: 'Shubham Kolekar', uhid: 'SWASTIK-2026-00002', age: 29, gender: 'Male' },
-    { id: '3', name: 'Virat Kohli', uhid: 'SWASTIK-2026-00006', age: 26, gender: 'Male' },
-    { id: '4', name: 'Rohit Sharma', uhid: 'SWASTIK-2026-00007', age: 42, gender: 'Male' },
-  ];
-
-  const patientChoices = livePatients.length > 0 ? livePatients : fallbackPatients;
 
   return (
     <View style={styles.root}>
+      {/* Header */}
       <AppHeader onOpenDrawer={onOpenDrawer} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.titleRow}>
-          <View>
-            <Text style={styles.screenTitle}>Psychiatric EMR Consultation</Text>
-            <Text style={styles.screenSub}>Full Clinical Workstation & Diagnostic Assessment</Text>
-          </View>
-        </View>
-
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {!selectedPatient ? (
+          /* Patient Picker if no patient is currently open */
           <View>
             <View style={styles.infoCard}>
               <View style={styles.infoIconBox}>
@@ -471,721 +925,1306 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoCardTitle}>Select Patient to Open EMR</Text>
                 <Text style={styles.infoCardText}>
-                  Choose a patient from the hospital database below or select from Today's Schedule to start comprehensive clinical evaluation.
+                  Choose a registered patient below to resolve active admission context and launch the clinical evaluation workstation.
                 </Text>
               </View>
             </View>
 
             <View style={styles.patientSelectWrap}>
               <Text style={styles.secTitle}>Hospital Registry Patients</Text>
-              {patientChoices.map((p, idx) => (
-                <TouchableOpacity
-                  key={p.uhid || p._id || p.id || idx}
-                  style={styles.patientItem}
-                  onPress={() => setSelectedPatient(p)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarLetter}>{(p.name || 'P')[0].toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.patientName}>{p.name}</Text>
-                    <Text style={styles.patientMeta}>
-                      {p.uhid} · {p.age || 30} Yrs · {p.gender || 'General'}
-                    </Text>
-                  </View>
-                  <View style={styles.openPill}>
-                    <Text style={styles.openPillText}>Open EMR</Text>
-                    <Feather name="chevron-right" size={14} color="#0D9488" />
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {livePatients.length === 0 ? (
+                <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#0D9488" />
+                  <Text style={{ marginTop: 8, fontSize: 13, color: '#64748B' }}>Loading registry...</Text>
+                </View>
+              ) : (
+                livePatients.map((p, idx) => (
+                  <TouchableOpacity
+                    key={p.uhid || p._id || p.id || idx}
+                    style={styles.patientItem}
+                    onPress={() => resolveAndLoadPatient(p)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarLetter}>{(p.name || 'P')[0].toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.patientName}>{p.name}</Text>
+                      <Text style={styles.patientMeta}>
+                        {p.uhid} · {p.age || 30} Yrs · {p.gender || 'General'}
+                      </Text>
+                    </View>
+                    <View style={styles.openPill}>
+                      <Text style={styles.openPillText}>Open EMR</Text>
+                      <Feather name="chevron-right" size={14} color="#0D9488" />
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           </View>
         ) : (
+          /* Patient is selected: Sticky Header + Mode Selector + Content */
           <View>
-            {/* Patient Header Banner */}
+            {/* Sticky Patient Context Header Banner */}
             <View style={styles.patientBanner}>
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={styles.bannerPatientName}>{selectedPatient.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={styles.bannerPatientName}>{selectedPatient.name || selectedPatient.patient_name}</Text>
                   <View style={[styles.sessionBadge, isSessionLocked && styles.sessionBadgeLocked]}>
-                    <Feather name={isSessionLocked ? 'lock' : 'check-circle'} size={12} color="#FFF" />
-                    <Text style={styles.sessionBadgeText}>{isSessionLocked ? 'Locked' : 'In Session'}</Text>
+                    <Feather name={isSessionLocked ? 'lock' : 'check-circle'} size={11} color="#FFF" />
+                    <Text style={styles.sessionBadgeText}>{isSessionLocked ? 'Locked' : 'Active'}</Text>
                   </View>
+                  {resolvingAdmission ? (
+                    <ActivityIndicator size="small" color="#0D9488" />
+                  ) : (
+                    <View style={styles.admissionBadge}>
+                      <Text style={styles.admissionBadgeText}>{admissionId || 'ADM'}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.bannerPatientMeta}>
-                  UHID: {selectedPatient.uhid} | {selectedPatient.age || 30} Yrs | {selectedPatient.gender || 'General'} | Ward: OPD
+                  UHID: {selectedPatient.uhid || selectedPatient.id} | {selectedPatient.age || 30} Yrs | {selectedPatient.gender || 'General'} | {doctorName}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+
+              <View style={{ flexDirection: 'row', gap: 6 }}>
                 <TouchableOpacity style={styles.lockToggleBtn} onPress={handleToggleSessionLock}>
-                  <Feather name={isSessionLocked ? 'unlock' : 'lock'} size={14} color="#0D9488" />
+                  <Feather name={isSessionLocked ? 'unlock' : 'lock'} size={13} color="#0D9488" />
                   <Text style={styles.lockToggleText}>{isSessionLocked ? 'Unlock' : 'Lock'}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.printReportHeaderBtn} onPress={handlePrintFullReport}>
+                  <Feather name="printer" size={13} color="#FFFFFF" />
+                  <Text style={styles.printReportHeaderText}>Report</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.changePatientBtn} onPress={() => setSelectedPatient(null)}>
-                  <Text style={styles.changePatientText}>Change</Text>
+                  <Text style={styles.changePatientText}>Switch</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* EMR Sub-Navigation Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emrTabsScroll} contentContainerStyle={styles.emrTabsContainer}>
-              {[
-                { key: 'symptoms', label: 'Symptoms & MSE', icon: 'file-text' },
-                { key: 'diagnosis', label: 'Diagnosis & Risk', icon: 'activity' },
-                { key: 'medications', label: `Rx Meds (${medications.length})`, icon: 'plus-circle' },
-                { key: 'treatment', label: 'Treatment Plan', icon: 'clipboard' },
-                { key: 'soap', label: 'SOAP Notes', icon: 'edit-3' },
-                { key: 'vitals', label: 'Vitals', icon: 'heart' },
-              ].map((t) => (
-                <TouchableOpacity
-                  key={t.key}
-                  style={[styles.emrTabChip, activeTab === t.key && styles.emrTabChipActive]}
-                  onPress={() => setActiveTab(t.key as EmrTab)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name={t.icon as any} size={14} color={activeTab === t.key ? '#FFFFFF' : '#64748B'} />
-                  <Text style={[styles.emrTabChipText, activeTab === t.key && styles.emrTabChipTextActive]}>
-                    {t.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {/* Top View Mode Switcher: Ward Round Board vs Comprehensive EMR Form */}
+            <View style={styles.modeSwitchRow}>
+              <TouchableOpacity
+                style={[styles.modeSwitchBtn, workstationMode === 'board' && styles.modeSwitchBtnActive]}
+                onPress={() => setWorkstationMode('board')}
+              >
+                <MaterialCommunityIcons
+                  name="view-dashboard-outline"
+                  size={16}
+                  color={workstationMode === 'board' ? '#0D9488' : '#64748B'}
+                />
+                <Text style={[styles.modeSwitchText, workstationMode === 'board' && styles.modeSwitchTextActive]}>
+                  Ward Round Board
+                </Text>
+              </TouchableOpacity>
 
-            {/* Tab 1: Symptoms & Mental State Examination (MSE) */}
-            {activeTab === 'symptoms' && (
-              <View style={styles.tabContentCard}>
-                <Text style={styles.tabHeading}>1. Chief Complaints & History of Illness</Text>
+              <TouchableOpacity
+                style={[styles.modeSwitchBtn, workstationMode === 'emr' && styles.modeSwitchBtnActive]}
+                onPress={() => setWorkstationMode('emr')}
+              >
+                <MaterialCommunityIcons
+                  name="file-document-edit-outline"
+                  size={16}
+                  color={workstationMode === 'emr' ? '#0D9488' : '#64748B'}
+                />
+                <Text style={[styles.modeSwitchText, workstationMode === 'emr' && styles.modeSwitchTextActive]}>
+                  Comprehensive EMR Form
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Chief Complaint (Patient's Words)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={2}
-                    value={chiefComplaint}
-                    onChangeText={setChiefComplaint}
-                    placeholder="e.g. Severe low mood, lack of sleep, crying spells since 3 weeks"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.twoColRow}>
-                  <View style={[styles.fieldBox, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Onset</Text>
-                    <TextInput
-                      style={styles.textInputSingle}
-                      value={onset}
-                      onChangeText={setOnset}
-                      placeholder="e.g. 3 weeks ago"
-                      placeholderTextColor="#94A3B8"
-                    />
-                  </View>
-                  <View style={[styles.fieldBox, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Duration</Text>
-                    <TextInput
-                      style={styles.textInputSingle}
-                      value={duration}
-                      onChangeText={setDuration}
-                      placeholder="e.g. Continuous"
-                      placeholderTextColor="#94A3B8"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Precipitating Factors</Text>
-                  <TextInput
-                    style={styles.textInputSingle}
-                    value={precipitatingFactors}
-                    onChangeText={setPrecipitatingFactors}
-                    placeholder="Recent life events, work stress, loss, financial stressors"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>HPI (History of Present Illness)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={3}
-                    value={hpi}
-                    onChangeText={setHpi}
-                    placeholder="Detailed psychiatric history, progression, biological functions (sleep, appetite, energy)..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Suicidal Ideation (SI Assessment)</Text>
-                  <View style={styles.chipsRow}>
-                    {SI_OPTIONS.map((si) => (
-                      <TouchableOpacity
-                        key={si}
-                        style={[
-                          styles.siChip,
-                          suicidalIdeation === si && styles.siChipActive,
-                          si !== 'None' && suicidalIdeation === si && styles.siChipDanger,
-                        ]}
-                        onPress={() => setSuicidalIdeation(si)}
-                      >
-                        <Text
-                          style={[
-                            styles.siChipText,
-                            suicidalIdeation === si && styles.siChipTextActive,
-                          ]}
-                        >
-                          {si}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.twoColRow}>
-                  <View style={[styles.fieldBox, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Self-Harm History</Text>
-                    <TextInput
-                      style={styles.textInputSingle}
-                      value={selfHarmHistory}
-                      onChangeText={setSelfHarmHistory}
-                      placeholder="Past NSSI, deliberate attempts"
-                      placeholderTextColor="#94A3B8"
-                    />
-                  </View>
-                  <View style={[styles.fieldBox, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Harm to Others</Text>
-                    <TextInput
-                      style={styles.textInputSingle}
-                      value={harmToOthersRisk}
-                      onChangeText={setHarmToOthersRisk}
-                      placeholder="Aggression, homicidal thoughts"
-                      placeholderTextColor="#94A3B8"
-                    />
-                  </View>
-                </View>
-
-                {/* Mental Status Examination (MSE) Interactive Module */}
-                <View style={styles.mseModuleBox}>
-                  <View style={styles.mseHeaderRow}>
-                    <MaterialCommunityIcons name="brain" size={20} color="#0D9488" />
-                    <Text style={styles.mseHeading}>Mental Status Examination (MSE)</Text>
-                  </View>
-                  <Text style={styles.mseSub}>Tap findings to include in official clinical observation:</Text>
-
-                  {Object.entries(MSE_OPTIONS).map(([catKey, options]) => (
-                    <View key={catKey} style={styles.mseCategoryRow}>
-                      <Text style={styles.mseCatLabel}>{catKey.replace(/([A-Z])/g, ' $1').trim()}</Text>
-                      <View style={styles.chipsRow}>
-                        {options.map((opt) => {
-                          const isSelected = (mseFindings[catKey] || []).includes(opt);
-                          const isDangerous = MSE_DANGEROUS.some((d) => opt.includes(d));
-
-                          return (
-                            <TouchableOpacity
-                              key={opt}
-                              style={[
-                                styles.mseChip,
-                                isSelected && styles.mseChipActive,
-                                isDangerous && isSelected && styles.mseChipDanger,
-                              ]}
-                              onPress={() => handleToggleMse(catKey, opt)}
-                              activeOpacity={0.7}
-                            >
-                              <Text
-                                style={[
-                                  styles.mseChipText,
-                                  isSelected && styles.mseChipTextActive,
-                                  isDangerous && isSelected && { color: '#FFFFFF' },
-                                ]}
-                              >
-                                {opt}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+            {workstationMode === 'board' ? (
+              /* MODE A: Ward Round Board & Clinical Overview */
+              <View style={{ gap: 14 }}>
+                {/* 1. Vitals Pulse Widget */}
+                <View style={styles.boardCard}>
+                  <View style={styles.boardCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons name="heart-pulse" size={18} color="#10B981" />
+                      <Text style={styles.boardCardTitle}>Live Vitals Pulse</Text>
                     </View>
-                  ))}
+                    <TouchableOpacity
+                      style={styles.widgetActionBtn}
+                      onPress={() => setShowQuickVitalsModal(true)}
+                    >
+                      <Feather name="plus" size={13} color="#0D9488" />
+                      <Text style={styles.widgetActionText}>Record</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.vitalsPulseGrid}>
+                    <View style={styles.vitalPulseBox}>
+                      <Text style={styles.vitalPulseLabel}>BP</Text>
+                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.bp_systolic ? `${vitalsList[0].bp_systolic}/${vitalsList[0].bp_diastolic}` : '120/80'}</Text>
+                      <Text style={styles.vitalPulseUnit}>mmHg</Text>
+                    </View>
+                    <View style={styles.vitalPulseBox}>
+                      <Text style={styles.vitalPulseLabel}>HR</Text>
+                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.hr || '74'}</Text>
+                      <Text style={styles.vitalPulseUnit}>bpm</Text>
+                    </View>
+                    <View style={styles.vitalPulseBox}>
+                      <Text style={styles.vitalPulseLabel}>SpO2</Text>
+                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.spo2 ? `${vitalsList[0].spo2}%` : '98%'}</Text>
+                      <Text style={styles.vitalPulseUnit}>O2 Sat</Text>
+                    </View>
+                    <View style={styles.vitalPulseBox}>
+                      <Text style={styles.vitalPulseLabel}>TEMP</Text>
+                      <Text style={styles.vitalPulseVal}>{vitalsList[0]?.temp ? `${vitalsList[0].temp}°` : '36.8°'}</Text>
+                      <Text style={styles.vitalPulseUnit}>Celsius</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 2. Clinical Impression & Risk Widget */}
+                <View style={styles.boardCard}>
+                  <View style={styles.boardCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons name="brain" size={18} color="#8B5CF6" />
+                      <Text style={styles.boardCardTitle}>Clinical Impression & Risk Profile</Text>
+                    </View>
+                  </View>
+                  <View style={styles.impressionBox}>
+                    <Text style={styles.impressionDiagTitle}>Primary Diagnosis:</Text>
+                    <Text style={styles.impressionDiagText}>{diagnosis}</Text>
+                    <View style={styles.severityTag}>
+                      <Text style={styles.severityTagText}>Severity: {severity}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.riskMeterRow}>
+                    <View style={styles.riskMeterCol}>
+                      <Text style={styles.riskMeterLabel}>Risk to Self</Text>
+                      <View style={styles.riskBarBg}>
+                        <View style={[styles.riskBarFill, { width: `${riskToSelf}%`, backgroundColor: riskToSelf > 60 ? '#EF4444' : '#F59E0B' }]} />
+                      </View>
+                      <Text style={styles.riskValText}>{riskToSelf}%</Text>
+                    </View>
+
+                    <View style={styles.riskMeterCol}>
+                      <Text style={styles.riskMeterLabel}>Risk to Others</Text>
+                      <View style={styles.riskBarBg}>
+                        <View style={[styles.riskBarFill, { width: `${riskToOthers}%`, backgroundColor: riskToOthers > 60 ? '#EF4444' : '#10B981' }]} />
+                      </View>
+                      <Text style={styles.riskValText}>{riskToOthers}%</Text>
+                    </View>
+
+                    <View style={styles.riskMeterCol}>
+                      <Text style={styles.riskMeterLabel}>Vulnerability</Text>
+                      <View style={styles.riskBarBg}>
+                        <View style={[styles.riskBarFill, { width: `${riskToVulnerability}%`, backgroundColor: '#3B82F6' }]} />
+                      </View>
+                      <Text style={styles.riskValText}>{riskToVulnerability}%</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 3. Latest Clinical Assessment (SOAP) */}
+                <View style={styles.boardCard}>
+                  <View style={styles.boardCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons name="file-document-outline" size={18} color="#0284C7" />
+                      <Text style={styles.boardCardTitle}>Latest Clinical Assessment (SOAP)</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.widgetActionBtn}
+                      onPress={() => setShowQuickNoteModal(true)}
+                    >
+                      <Feather name="edit-3" size={13} color="#0D9488" />
+                      <Text style={styles.widgetActionText}>Add Note</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {sessionNotesList.length === 0 ? (
+                    <Text style={{ fontSize: 13, color: '#64748B', fontStyle: 'italic', paddingVertical: 8 }}>
+                      No clinical session notes recorded for this admission yet.
+                    </Text>
+                  ) : (
+                    <View style={styles.soapBriefBox}>
+                      <Text style={styles.soapBriefLabel}>SUBJECTIVE:</Text>
+                      <Text style={styles.soapBriefText}>{sessionNotesList[0].subjective || 'No complaints.'}</Text>
+                      <Text style={styles.soapBriefLabel}>ASSESSMENT:</Text>
+                      <Text style={styles.soapBriefText}>{sessionNotesList[0].assessment || 'Status maintained.'}</Text>
+                      <Text style={styles.soapBriefLabel}>PLAN:</Text>
+                      <Text style={styles.soapBriefText}>{sessionNotesList[0].plan || 'Continue treatment.'}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* 4. Active Orders (Medications & Labs) */}
+                <View style={styles.boardCard}>
+                  <View style={styles.boardCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons name="pill" size={18} color="#0D9488" />
+                      <Text style={styles.boardCardTitle}>Active Regimen & Investigations</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.widgetActionBtn}
+                      onPress={() => setShowOrderLabModal(true)}
+                    >
+                      <MaterialCommunityIcons name="flask" size={13} color="#0D9488" />
+                      <Text style={styles.widgetActionText}>Order Lab</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ gap: 8 }}>
+                    <Text style={styles.subSecHeader}>Active Medications ({medicationsList.filter((m) => m.status !== 'Stopped').length}):</Text>
+                    {medicationsList.filter((m) => m.status !== 'Stopped').length === 0 ? (
+                      <Text style={{ fontSize: 12, color: '#94A3B8' }}>No active prescriptions</Text>
+                    ) : (
+                      medicationsList.filter((m) => m.status !== 'Stopped').map((med, idx) => (
+                        <View key={med.id || med._id || idx} style={styles.orderItemRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.orderDrugName}>{med.drug_name || med.name}</Text>
+                            <Text style={styles.orderDrugMeta}>{med.dose} • {med.frequency} • {med.route}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.stopMedBtn}
+                            onPress={() => handleStopMedication(med.id || med._id, med.drug_name || med.name)}
+                          >
+                            <Text style={styles.stopMedBtnText}>Stop</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
+
+                    <Text style={[styles.subSecHeader, { marginTop: 8 }]}>Pending Lab Orders ({patientLabOrders.filter((o) => o.status !== 'REPORT_READY' && o.status !== 'CANCELLED').length}):</Text>
+                    {patientLabOrders.filter((o) => o.status !== 'REPORT_READY' && o.status !== 'CANCELLED').length === 0 ? (
+                      <Text style={{ fontSize: 12, color: '#94A3B8' }}>No pending lab investigations</Text>
+                    ) : (
+                      patientLabOrders.filter((o) => o.status !== 'REPORT_READY' && o.status !== 'CANCELLED').map((ord, idx) => (
+                        <View key={ord.request_id || ord._id || idx} style={styles.labOrderItem}>
+                          <Text style={styles.labOrderTests}>{(ord.tests_ordered || []).join(', ')}</Text>
+                          <View style={styles.labStatusPill}>
+                            <Text style={styles.labStatusPillText}>{ord.status || 'REQUESTED'}</Text>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
+
+                {/* 5. Rounding Logs Timeline */}
+                <View style={styles.boardCard}>
+                  <View style={styles.boardCardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons name="clipboard-text-clock" size={18} color="#0284C7" />
+                      <Text style={styles.boardCardTitle}>Rounding Progress Log</Text>
+                    </View>
+                  </View>
+                  {sessionNotesList.length === 0 ? (
+                    <Text style={{ fontSize: 12, color: '#94A3B8', paddingVertical: 10 }}>No rounding notes recorded yet.</Text>
+                  ) : (
+                    sessionNotesList.slice(0, 5).map((note, idx) => (
+                      <View key={note.id || note._id || idx} style={styles.roundingLogItem}>
+                        <View style={styles.roundingDateRow}>
+                          <Text style={styles.roundingDateText}>
+                            {note.session_date ? new Date(note.session_date).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'Recent Round'}
+                          </Text>
+                          <Text style={styles.roundingAuthorText}>{note.signed_by || note.role_tag || 'Doctor'}</Text>
+                        </View>
+                        <Text style={styles.roundingContentText}>{note.subjective || note.assessment || note.plan}</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+
+                {/* 6. Quick Action Buttons Row */}
+                <View style={styles.quickActionsGrid}>
+                  <TouchableOpacity
+                    style={styles.quickActionTile}
+                    onPress={() => setShowQuickNoteModal(true)}
+                  >
+                    <Feather name="file-text" size={20} color="#0D9488" />
+                    <Text style={styles.quickActionTileText}>Rounding Note</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickActionTile}
+                    onPress={() => setShowQuickVitalsModal(true)}
+                  >
+                    <Feather name="activity" size={20} color="#0D9488" />
+                    <Text style={styles.quickActionTileText}>Record Vitals</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickActionTile}
+                    onPress={() => setShowAddMedModal(true)}
+                  >
+                    <Feather name="plus-circle" size={20} color="#0D9488" />
+                    <Text style={styles.quickActionTileText}>Prescribe Med</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickActionTile}
+                    onPress={() => setShowDischargeModal(true)}
+                  >
+                    <Feather name="check-circle" size={20} color="#059669" />
+                    <Text style={styles.quickActionTileText}>Discharge Rec</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            )}
-
-            {/* Tab 2: Diagnosis & Clinical Risk */}
-            {activeTab === 'diagnosis' && (
-              <View style={styles.tabContentCard}>
-                <Text style={styles.tabHeading}>2. Psychiatric Diagnosis & Risk Assessment</Text>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Diagnostic Classification System</Text>
-                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            ) : (
+              /* MODE B: Comprehensive Admission-Centric EMR Workspace (Tabs) */
+              <View>
+                {/* Horizontal EMR Sub-Navigation Tabs */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emrTabsScroll} contentContainerStyle={styles.emrTabsContainer}>
+                  {[
+                    { key: 'symptoms', label: 'Symptoms & HPI', icon: 'file-text' },
+                    { key: 'mse', label: 'MSE Exam', icon: 'eye' },
+                    { key: 'diagnosis', label: 'Diagnosis & Codes', icon: 'activity' },
+                    { key: 'risk', label: 'Risk Assessment', icon: 'alert-triangle' },
+                    { key: 'medications', label: `Rx Meds (${medicationsList.length})`, icon: 'plus-circle' },
+                    { key: 'treatment', label: 'Treatment Plan', icon: 'clipboard' },
+                    { key: 'soap', label: 'SOAP Notes', icon: 'edit-3' },
+                    { key: 'vitals', label: 'Vitals & History', icon: 'heart' },
+                    { key: 'labs', label: 'Lab & Monitoring', icon: 'layers' },
+                    { key: 'timeline', label: 'Clinical Timeline', icon: 'clock' },
+                    { key: 'rehab', label: 'Rehab & Routine', icon: 'calendar' },
+                    { key: 'audit', label: 'EMR Audit Log', icon: 'shield' },
+                  ].map((t) => (
                     <TouchableOpacity
-                      style={[styles.diagSysBtn, diagSystem === 'icd11' && styles.diagSysBtnActive]}
-                      onPress={() => setDiagSystem('icd11')}
+                      key={t.key}
+                      style={[styles.emrTabChip, activeTab === t.key && styles.emrTabChipActive]}
+                      onPress={() => setActiveTab(t.key as EmrTab)}
+                      activeOpacity={0.7}
                     >
-                      <Text style={[styles.diagSysText, diagSystem === 'icd11' && styles.diagSysTextActive]}>
-                        ICD-11 (WHO)
+                      <Feather name={t.icon as any} size={13} color={activeTab === t.key ? '#FFFFFF' : '#64748B'} />
+                      <Text style={[styles.emrTabChipText, activeTab === t.key && styles.emrTabChipTextActive]}>
+                        {t.label}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.diagSysBtn, diagSystem === 'dsm5' && styles.diagSysBtnActive]}
-                      onPress={() => setDiagSystem('dsm5')}
-                    >
-                      <Text style={[styles.diagSysText, diagSystem === 'dsm5' && styles.diagSysTextActive]}>
-                        DSM-5 (APA)
-                      </Text>
+                  ))}
+                </ScrollView>
+
+                {/* TAB 1: Symptoms & HPI */}
+                {activeTab === 'symptoms' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Symptoms & History of Present Illness (HPI)</Text>
+
+                    <Text style={styles.inputLabel}>Chief Complaint (Patient's words)</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={chiefComplaint}
+                      onChangeText={setChiefComplaint}
+                      placeholder="e.g. Severe low mood, sleep disturbance, racing thoughts"
+                    />
+
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Onset</Text>
+                        <TextInput style={styles.textInput} value={onset} onChangeText={setOnset} placeholder="e.g. 2 weeks ago" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Duration</Text>
+                        <TextInput style={styles.textInput} value={duration} onChangeText={setDuration} placeholder="e.g. 1 month" />
+                      </View>
+                    </View>
+
+                    <Text style={styles.inputLabel}>Precipitating Factors</Text>
+                    <TextInput style={styles.textInput} value={precipitatingFactors} onChangeText={setPrecipitatingFactors} placeholder="Life events, family stressors, work pressure" />
+
+                    <Text style={styles.inputLabel}>Perpetuating Factors</Text>
+                    <TextInput style={styles.textInput} value={perpetuatingFactors} onChangeText={setPerpetuatingFactors} placeholder="Ongoing insomnia, substance use, non-adherence" />
+
+                    <Text style={styles.inputLabel}>HPI Narrative</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 90 }]}
+                      multiline
+                      value={hpi}
+                      onChangeText={setHpi}
+                      placeholder="Comprehensive clinical evolution and psychiatric presentation details..."
+                    />
+
+                    <Text style={styles.inputLabel}>Suicidal Ideation</Text>
+                    <View style={styles.chipsRow}>
+                      {SI_OPTIONS.map((opt) => (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[styles.filterChip, suicidalIdeation === opt && styles.filterChipActive]}
+                          onPress={() => setSuicidalIdeation(opt)}
+                        >
+                          <Text style={[styles.filterChipText, suicidalIdeation === opt && styles.filterChipTextActive]}>
+                            {opt}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Self-Harm History</Text>
+                        <TextInput style={styles.textInput} value={selfHarmHistory} onChangeText={setSelfHarmHistory} placeholder="Past attempts, NSSI" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Harm to Others Risk</Text>
+                        <TextInput style={styles.textInput} value={harmToOthersRisk} onChangeText={setHarmToOthersRisk} placeholder="Aggression, impulsivity" />
+                      </View>
+                    </View>
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={saveSymptomsHpi} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Symptoms & HPI'}</Text>
                     </TouchableOpacity>
                   </View>
+                )}
 
-                  {/* Search Input */}
-                  <View style={styles.diagSearchBox}>
-                    <Feather name="search" size={16} color="#64748B" />
+                {/* TAB 2: Mental Status Examination (MSE) */}
+                {activeTab === 'mse' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Mental Status Examination (MSE)</Text>
+                    <Text style={styles.tabSectionSubtitle}>Tap observed psychiatric findings to populate clinical profile.</Text>
+
+                    {Object.entries(MSE_OPTIONS).map(([category, options]) => (
+                      <View key={category} style={styles.mseCategoryGroup}>
+                        <Text style={styles.mseCategoryHeader}>
+                          {category.replace(/([A-Z])/g, ' $1').toUpperCase()}
+                        </Text>
+                        <View style={styles.chipsRow}>
+                          {options.map((opt) => {
+                            const isSelected = (mseFindings[category] || []).includes(opt);
+                            const isDangerous = MSE_DANGEROUS.some((d) => opt.includes(d));
+
+                            return (
+                              <TouchableOpacity
+                                key={opt}
+                                style={[
+                                  styles.mseChip,
+                                  isSelected && styles.mseChipSelected,
+                                  isSelected && isDangerous && styles.mseChipDangerous,
+                                ]}
+                                onPress={() => handleToggleMse(category, opt)}
+                              >
+                                <Text
+                                  style={[
+                                    styles.mseChipText,
+                                    isSelected && styles.mseChipTextSelected,
+                                  ]}
+                                >
+                                  {opt}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ))}
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={saveMse} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Mental Status Exam'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* TAB 3: Diagnosis & Diagnostic Systems */}
+                {activeTab === 'diagnosis' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Psychiatric Diagnosis & Classification</Text>
+
+                    <View style={styles.diagSystemRow}>
+                      <TouchableOpacity
+                        style={[styles.diagSystemBtn, diagSystem === 'icd11' && styles.diagSystemBtnActive]}
+                        onPress={() => setDiagSystem('icd11')}
+                      >
+                        <Text style={[styles.diagSystemText, diagSystem === 'icd11' && styles.diagSystemTextActive]}>
+                          WHO ICD-11
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.diagSystemBtn, diagSystem === 'dsm5' && styles.diagSystemBtnActive]}
+                        onPress={() => setDiagSystem('dsm5')}
+                      >
+                        <Text style={[styles.diagSystemText, diagSystem === 'dsm5' && styles.diagSystemTextActive]}>
+                          APA DSM-5
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
                     <TextInput
-                      style={styles.diagSearchInput}
-                      placeholder={`Search ${diagSystem.toUpperCase()} codes & psychiatric disorders...`}
-                      placeholderTextColor="#94A3B8"
+                      style={styles.textInput}
+                      placeholder="Search psychiatric codes or diagnoses..."
                       value={diagSearch}
                       onChangeText={setDiagSearch}
                     />
-                    {diagSearch.length > 0 && (
-                      <TouchableOpacity onPress={() => setDiagSearch('')}>
-                        <Feather name="x" size={16} color="#64748B" />
+
+                    <View style={styles.chipsRow}>
+                      {filteredDiagnoses.map((d, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[styles.codeChip, diagnosis.includes(d.code) && styles.codeChipActive]}
+                          onPress={() => setDiagnosis(`${d.code} ${d.title}`)}
+                        >
+                          <Text style={[styles.codeChipText, diagnosis.includes(d.code) && styles.codeChipTextActive]}>
+                            {d.code} {d.title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={[styles.inputLabel, { marginTop: 12 }]}>Selected Primary Diagnosis</Text>
+                    <TextInput style={styles.textInput} value={diagnosis} onChangeText={setDiagnosis} />
+
+                    <Text style={styles.inputLabel}>Severity Level</Text>
+                    <View style={styles.chipsRow}>
+                      {['Mild', 'Moderate', 'Severe', 'In Remission'].map((lvl) => (
+                        <TouchableOpacity
+                          key={lvl}
+                          style={[styles.filterChip, severity === lvl && styles.filterChipActive]}
+                          onPress={() => setSeverity(lvl)}
+                        >
+                          <Text style={[styles.filterChipText, severity === lvl && styles.filterChipTextActive]}>
+                            {lvl}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Bio-Psycho-Social Formulation</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 70 }]}
+                      multiline
+                      value={bioPsychoSocial}
+                      onChangeText={setBioPsychoSocial}
+                      placeholder="Biological predispositions, psychological triggers, and social environment..."
+                    />
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={saveDiagnosisAndRisk} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Diagnosis'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* TAB 4: Risk Assessment */}
+                {activeTab === 'risk' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Clinical Risk Stratification (3-Axis Model)</Text>
+
+                    <View style={styles.riskSliderBox}>
+                      <Text style={styles.riskSliderTitle}>1. Risk to Self (Suicide & NSSI): {riskToSelf}%</Text>
+                      <View style={styles.chipsRow}>
+                        {[10, 25, 50, 75, 90].map((v) => (
+                          <TouchableOpacity
+                            key={v}
+                            style={[styles.filterChip, riskToSelf === v && styles.filterChipActive]}
+                            onPress={() => setRiskToSelf(v)}
+                          >
+                            <Text style={[styles.filterChipText, riskToSelf === v && styles.filterChipTextActive]}>
+                              {v >= 75 ? 'Critical' : v >= 50 ? 'High' : v >= 25 ? 'Moderate' : 'Low'} ({v}%)
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    <View style={styles.riskSliderBox}>
+                      <Text style={styles.riskSliderTitle}>2. Risk to Others (Violence & Aggression): {riskToOthers}%</Text>
+                      <View style={styles.chipsRow}>
+                        {[10, 25, 50, 75, 90].map((v) => (
+                          <TouchableOpacity
+                            key={v}
+                            style={[styles.filterChip, riskToOthers === v && styles.filterChipActive]}
+                            onPress={() => setRiskToOthers(v)}
+                          >
+                            <Text style={[styles.filterChipText, riskToOthers === v && styles.filterChipTextActive]}>
+                              {v >= 75 ? 'Critical' : v >= 50 ? 'High' : v >= 25 ? 'Moderate' : 'Low'} ({v}%)
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    <View style={styles.riskSliderBox}>
+                      <Text style={styles.riskSliderTitle}>3. Risk of Vulnerability (Elopement & Neglect): {riskToVulnerability}%</Text>
+                      <View style={styles.chipsRow}>
+                        {[10, 25, 50, 75, 90].map((v) => (
+                          <TouchableOpacity
+                            key={v}
+                            style={[styles.filterChip, riskToVulnerability === v && styles.filterChipActive]}
+                            onPress={() => setRiskToVulnerability(v)}
+                          >
+                            <Text style={[styles.filterChipText, riskToVulnerability === v && styles.filterChipTextActive]}>
+                              {v >= 75 ? 'Critical' : v >= 50 ? 'High' : v >= 25 ? 'Moderate' : 'Low'} ({v}%)
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.safetyPlanCheckbox}
+                      onPress={() => setSafetyPlanRequired(!safetyPlanRequired)}
+                    >
+                      <Feather name={safetyPlanRequired ? 'check-square' : 'square'} size={18} color="#0D9488" />
+                      <Text style={styles.safetyPlanText}>Formal Safety Plan Document Required</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={saveDiagnosisAndRisk} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Risk Assessment'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* TAB 5: Medications (Rx) */}
+                {activeTab === 'medications' && (
+                  <View style={styles.tabContentCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={styles.tabSectionTitle}>Active Psychiatric Medications</Text>
+                      <TouchableOpacity
+                        style={styles.tabAddBtn}
+                        onPress={() => setShowAddMedModal(true)}
+                      >
+                        <Feather name="plus" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={styles.tabAddBtnText}>Add Rx</Text>
                       </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.allergyBanner}>
+                      <Feather name="alert-circle" size={16} color="#E11D48" style={{ marginRight: 6 }} />
+                      <Text style={styles.allergyBannerText}>
+                        Allergy Check: Patient has no known documented drug allergies (NKDA).
+                      </Text>
+                    </View>
+
+                    {medicationsList.length === 0 ? (
+                      <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginVertical: 20 }}>
+                        No medications prescribed yet. Tap "+ Add Rx" above.
+                      </Text>
+                    ) : (
+                      medicationsList.map((m, idx) => {
+                        const isStopped = m.status === 'Stopped';
+
+                        return (
+                          <View key={m.id || m._id || idx} style={[styles.medCard, isStopped && styles.medCardStopped]}>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={[styles.medCardName, isStopped && { textDecorationLine: 'line-through', color: '#94A3B8' }]}>
+                                  {m.drug_name || m.name}
+                                </Text>
+                                <View style={[styles.medStatusBadge, isStopped ? styles.medStatusStopped : styles.medStatusActive]}>
+                                  <Text style={[styles.medStatusText, isStopped ? { color: '#E11D48' } : { color: '#059669' }]}>
+                                    {m.status || 'Active'}
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={styles.medCardMeta}>
+                                Dose: {m.dose} | {m.frequency} | Route: {m.route || 'PO'} | Duration: {m.duration || '30 days'}
+                              </Text>
+                            </View>
+
+                            {!isStopped && (
+                              <TouchableOpacity
+                                style={styles.stopActionBtn}
+                                onPress={() => handleStopMedication(m.id || m._id, m.drug_name || m.name)}
+                              >
+                                <Text style={styles.stopActionBtnText}>STOP</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })
                     )}
                   </View>
+                )}
 
-                  {/* Selected Diagnosis Badge */}
-                  <View style={styles.selectedDiagBadge}>
-                    <Text style={styles.selectedDiagLabel}>Selected Diagnosis:</Text>
-                    <Text style={styles.selectedDiagVal}>{diagnosis}</Text>
-                  </View>
+                {/* TAB 6: Treatment Plan */}
+                {activeTab === 'treatment' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Comprehensive Treatment & Rehabilitation Plan</Text>
 
-                  <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
-                    {filteredDiagnoses.map((item: any, idx: number) => {
-                      const itemText = `${item.code} ${item.title}`;
-                      const isSelected = diagnosis === itemText;
-                      return (
+                    <Text style={styles.inputLabel}>Short-Term Clinical Goals</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={shortTermGoals}
+                      onChangeText={setShortTermGoals}
+                      placeholder="e.g. Relieve acute distress, restore sleep cycle, assess suicidal intent"
+                    />
+
+                    <Text style={styles.inputLabel}>Long-Term Recovery Goals</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={longTermGoals}
+                      onChangeText={setLongTermGoals}
+                      placeholder="e.g. Complete symptomatic remission, vocational reintegration, relapse prevention"
+                    />
+
+                    <Text style={styles.inputLabel}>Psychotherapy Modalities</Text>
+                    <View style={styles.chipsRow}>
+                      {THERAPY_MODALITIES.map((mod) => (
                         <TouchableOpacity
-                          key={item.code || idx}
-                          style={[styles.diagRow, isSelected && styles.diagRowActive]}
-                          onPress={() => setDiagnosis(itemText)}
-                          activeOpacity={0.7}
+                          key={mod}
+                          style={[styles.filterChip, selectedTherapies.includes(mod) && styles.filterChipActive]}
+                          onPress={() => handleToggleTherapy(mod)}
                         >
-                          <Ionicons
-                            name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                            size={18}
-                            color={isSelected ? '#0D9488' : '#94A3B8'}
-                          />
-                          <View style={{ flex: 1, marginLeft: 8 }}>
-                            <Text style={[styles.diagText, isSelected && styles.diagTextActive]}>
-                              {item.title}
-                            </Text>
-                            <Text style={styles.diagCodeSub}>Code: {item.code}</Text>
-                          </View>
+                          <Text style={[styles.filterChipText, selectedTherapies.includes(mod) && styles.filterChipTextActive]}>
+                            {mod}
+                          </Text>
                         </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
+                      ))}
+                    </View>
 
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Clinical Severity</Text>
-                  <View style={styles.chipsRow}>
-                    {['Mild', 'Moderate', 'Severe', 'In Remission'].map((sev) => (
-                      <TouchableOpacity
-                        key={sev}
-                        style={[styles.sevChip, severity === sev && styles.sevChipActive]}
-                        onPress={() => setSeverity(sev)}
-                      >
-                        <Text style={[styles.sevChipText, severity === sev && styles.sevChipTextActive]}>
-                          {sev}
-                        </Text>
+                    <Text style={styles.inputLabel}>Inpatient Observation Level</Text>
+                    <View style={styles.chipsRow}>
+                      {OBSERVATION_LEVELS.map((lvl) => (
+                        <TouchableOpacity
+                          key={lvl}
+                          style={[styles.filterChip, observationLevel === lvl && styles.filterChipActive]}
+                          onPress={() => setObservationLevel(lvl)}
+                        >
+                          <Text style={[styles.filterChipText, observationLevel === lvl && styles.filterChipTextActive]}>
+                            {lvl}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Discharge Criteria</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={dischargeCriteria}
+                      onChangeText={setDischargeCriteria}
+                      placeholder="Criteria required before medical discharge authorization..."
+                    />
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={saveTreatmentPlan} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Treatment Plan'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* TAB 7: SOAP Notes */}
+                {activeTab === 'soap' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Clinical Session Notes (SOAP)</Text>
+
+                    <Text style={styles.inputLabel}>Subjective (Patient Complaints & Mental State)</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={soapSubjective}
+                      onChangeText={setSoapSubjective}
+                      placeholder="Patient reports sleep improving; appetite fair; denies suicidal intent."
+                    />
+
+                    <Text style={styles.inputLabel}>Objective Observations & Checklist</Text>
+                    <View style={{ gap: 6, marginBottom: 8 }}>
+                      {SOAP_CHECKLIST_QUESTIONS.slice(0, 6).map((q) => (
+                        <View key={q.id} style={styles.soapCheckRow}>
+                          <Text style={styles.soapCheckText}>{q.text}</Text>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <TouchableOpacity
+                              style={[styles.miniYesNoBtn, soapChecklist[q.id] === 'yes' && styles.miniYesBtnActive]}
+                              onPress={() => setSoapChecklist((prev) => ({ ...prev, [q.id]: 'yes' }))}
+                            >
+                              <Text style={[styles.miniYesNoText, soapChecklist[q.id] === 'yes' && { color: '#FFF' }]}>YES</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.miniYesNoBtn, soapChecklist[q.id] === 'no' && styles.miniNoBtnActive]}
+                              onPress={() => setSoapChecklist((prev) => ({ ...prev, [q.id]: 'no' }))}
+                            >
+                              <Text style={[styles.miniYesNoText, soapChecklist[q.id] === 'no' && { color: '#FFF' }]}>NO</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Assessment (Diagnostic Evaluation)</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={soapAssessment}
+                      onChangeText={setSoapAssessment}
+                      placeholder="Responding well to psychopharmacotherapy; no adverse extrapyramidal symptoms."
+                    />
+
+                    <Text style={styles.inputLabel}>Plan & Next Interventions</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={soapPlan}
+                      onChangeText={setSoapPlan}
+                      placeholder="Maintain current dosage; schedule CBT session on Tuesday; monitor vitals."
+                    />
+
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                      <TouchableOpacity style={[styles.tabSaveBtn, { flex: 1, backgroundColor: '#64748B' }]} onPress={() => handleSaveSoapNote(false)} disabled={saving}>
+                        <Feather name="file" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={styles.tabSaveBtnText}>Save Draft</Text>
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
 
-                {/* Risk Meters */}
-                <View style={styles.riskMeterSection}>
-                  <Text style={styles.riskSectionTitle}>Clinical Risk Meters</Text>
-
-                  {/* Suicide Risk */}
-                  <View style={styles.riskRow}>
-                    <Text style={styles.riskName}>Suicide Risk:</Text>
-                    <View style={styles.riskLevelsRow}>
-                      {(['Low', 'Moderate', 'High', 'Critical'] as const).map((lvl) => (
-                        <TouchableOpacity
-                          key={lvl}
-                          style={[
-                            styles.riskLevelPill,
-                            suicideRisk === lvl && styles.riskLevelPillActive,
-                            suicideRisk === lvl && lvl === 'Critical' && { backgroundColor: '#DC2626' },
-                          ]}
-                          onPress={() => setSuicideRisk(lvl)}
-                        >
-                          <Text style={[styles.riskLevelText, suicideRisk === lvl && styles.riskLevelTextActive]}>
-                            {lvl}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      <TouchableOpacity style={[styles.tabSaveBtn, { flex: 1 }]} onPress={() => handleSaveSoapNote(true)} disabled={saving}>
+                        <Feather name="check-circle" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={styles.tabSaveBtnText}>Sign & Lock Note</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
+                )}
 
-                  {/* Self-Harm Risk */}
-                  <View style={styles.riskRow}>
-                    <Text style={styles.riskName}>Self-Harm Risk:</Text>
-                    <View style={styles.riskLevelsRow}>
-                      {(['Low', 'Moderate', 'High', 'Critical'] as const).map((lvl) => (
-                        <TouchableOpacity
-                          key={lvl}
-                          style={[styles.riskLevelPill, selfHarmRisk === lvl && styles.riskLevelPillActive]}
-                          onPress={() => setSelfHarmRisk(lvl)}
-                        >
-                          <Text style={[styles.riskLevelText, selfHarmRisk === lvl && styles.riskLevelTextActive]}>
-                            {lvl}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                {/* TAB 8: Vitals & History */}
+                {activeTab === 'vitals' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Record Inpatient Vitals</Text>
+
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Systolic BP</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalBpSys} onChangeText={setVitalBpSys} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Diastolic BP</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalBpDia} onChangeText={setVitalBpDia} />
+                      </View>
                     </View>
-                  </View>
 
-                  {/* Aggression Risk */}
-                  <View style={styles.riskRow}>
-                    <Text style={styles.riskName}>Aggression / Violence:</Text>
-                    <View style={styles.riskLevelsRow}>
-                      {(['Low', 'Moderate', 'High', 'Critical'] as const).map((lvl) => (
-                        <TouchableOpacity
-                          key={lvl}
-                          style={[styles.riskLevelPill, aggressionRisk === lvl && styles.riskLevelPillActive]}
-                          onPress={() => setAggressionRisk(lvl)}
-                        >
-                          <Text style={[styles.riskLevelText, aggressionRisk === lvl && styles.riskLevelTextActive]}>
-                            {lvl}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Heart Rate (bpm)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalHr} onChangeText={setVitalHr} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Temp (°C)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalTemp} onChangeText={setVitalTemp} />
+                      </View>
                     </View>
-                  </View>
-                </View>
-              </View>
-            )}
 
-            {/* Tab 3: Medications (Rx) */}
-            {activeTab === 'medications' && (
-              <View style={styles.tabContentCard}>
-                <View style={styles.medsHeaderRow}>
-                  <Text style={styles.tabHeading}>3. Pharmacotherapy Prescriptions</Text>
-                  <TouchableOpacity
-                    style={styles.addMedBtn}
-                    onPress={() => setShowAddMedModal(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="plus" size={16} color="#FFF" />
-                    <Text style={styles.addMedBtnText}>Add Drug</Text>
-                  </TouchableOpacity>
-                </View>
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>SpO2 (%)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalSpo2} onChangeText={setVitalSpo2} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Resp Rate (RR)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalRr} onChangeText={setVitalRr} />
+                      </View>
+                    </View>
 
-                {medications.length === 0 ? (
-                  <View style={styles.emptyMeds}>
-                    <Feather name="alert-circle" size={24} color="#94A3B8" />
-                    <Text style={styles.emptyMedsText}>No medications added yet.</Text>
-                  </View>
-                ) : (
-                  <View style={{ gap: 10 }}>
-                    {medications.map((m, idx) => (
-                      <View key={idx} style={styles.medCard}>
-                        <View style={styles.medCardHeader}>
-                          <Text style={styles.medName}>{m.name}</Text>
-                          <TouchableOpacity onPress={() => handleRemoveMedication(idx)}>
-                            <Feather name="trash-2" size={16} color="#EF4444" />
-                          </TouchableOpacity>
-                        </View>
-                        <View style={styles.medDetailsRow}>
-                          <View style={styles.medBadge}>
-                            <Text style={styles.medBadgeText}>Dose: {m.dose}</Text>
-                          </View>
-                          <View style={styles.medBadge}>
-                            <Text style={styles.medBadgeText}>{m.timing}</Text>
-                          </View>
-                          <View style={styles.medBadge}>
-                            <Text style={styles.medBadgeText}>{m.duration}</Text>
-                          </View>
-                        </View>
-                        {m.instructions ? (
-                          <Text style={styles.medInstructions}>Note: {m.instructions}</Text>
-                        ) : null}
+                    <View style={styles.formRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Weight (kg)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalWeight} onChangeText={setVitalWeight} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.inputLabel}>Sleep (hrs)</Text>
+                        <TextInput style={styles.textInput} keyboardType="numeric" value={vitalSleep} onChangeText={setVitalSleep} />
+                      </View>
+                    </View>
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={handleRecordVitals} disabled={saving}>
+                      <Feather name="activity" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Record Vitals'}</Text>
+                    </TouchableOpacity>
+
+                    <Text style={[styles.subSecHeader, { marginTop: 20 }]}>Historical Vitals Log ({vitalsList.length})</Text>
+                    {vitalsList.map((v, i) => (
+                      <View key={v.id || v._id || i} style={styles.vitalHistoryItem}>
+                        <Text style={styles.vitalHistoryDate}>
+                          {v.recorded_at ? new Date(v.recorded_at).toLocaleString() : 'Recorded'}
+                        </Text>
+                        <Text style={styles.vitalHistoryVals}>
+                          BP: {v.bp_systolic}/{v.bp_diastolic} | HR: {v.hr} bpm | Temp: {v.temp}°C | SpO2: {v.spo2}%
+                        </Text>
                       </View>
                     ))}
                   </View>
                 )}
-              </View>
-            )}
 
-            {/* Tab 4: Treatment Plan & Lab Orders */}
-            {activeTab === 'treatment' && (
-              <View style={styles.tabContentCard}>
-                <Text style={styles.tabHeading}>4. Multidisciplinary Treatment Plan</Text>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Psychotherapy Modalities</Text>
-                  <View style={styles.chipsRow}>
-                    {THERAPY_MODALITIES.map((mod) => {
-                      const active = selectedTherapies.includes(mod);
-                      return (
-                        <TouchableOpacity
-                          key={mod}
-                          style={[styles.therapyChip, active && styles.therapyChipActive]}
-                          onPress={() => handleToggleTherapy(mod)}
-                        >
-                          <Text style={[styles.therapyChipText, active && styles.therapyChipTextActive]}>
-                            {mod}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Order Lab Monitoring & Investigations</Text>
-                  <View style={styles.chipsRow}>
-                    {LAB_INVESTIGATIONS.map((lb) => {
-                      const active = selectedLabs.includes(lb);
-                      return (
-                        <TouchableOpacity
-                          key={lb}
-                          style={[styles.labChip, active && styles.labChipActive]}
-                          onPress={() => handleToggleLab(lb)}
-                        >
-                          <Text style={[styles.labChipText, active && styles.labChipTextActive]}>
-                            {lb}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>Follow-up Schedule</Text>
-                  <View style={styles.chipsRow}>
-                    {['3 Days', '1 Week', '2 Weeks', '1 Month', '3 Months'].map((fu) => (
+                {/* TAB 9: Lab & Monitoring */}
+                {activeTab === 'labs' && (
+                  <View style={styles.tabContentCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={styles.tabSectionTitle}>Therapeutic Lab Monitoring</Text>
                       <TouchableOpacity
-                        key={fu}
-                        style={[styles.sevChip, followUp === fu && styles.sevChipActive]}
-                        onPress={() => setFollowUp(fu)}
+                        style={styles.tabAddBtn}
+                        onPress={() => setShowOrderLabModal(true)}
                       >
-                        <Text style={[styles.sevChipText, followUp === fu && styles.sevChipTextActive]}>
-                          {fu}
-                        </Text>
+                        <Feather name="plus" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={styles.tabAddBtnText}>Order Labs</Text>
                       </TouchableOpacity>
-                    ))}
+                    </View>
+
+                    {/* Lithium Therapeutic Window Widget */}
+                    <View style={styles.therapeuticBox}>
+                      <Text style={styles.therapeuticTitle}>Serum Lithium Level Therapeutic Range</Text>
+                      <Text style={styles.therapeuticSub}>Target Range: 0.60 - 1.20 mEq/L</Text>
+                      <View style={styles.therapeuticBarBg}>
+                        <View style={[styles.therapeuticRange, { left: '37.5%', width: '37.5%' }]} />
+                        <View style={[styles.therapeuticMarker, { left: '55%' }]} />
+                      </View>
+                      <Text style={styles.therapeuticValue}>Observed: 0.88 mEq/L (In Target Range)</Text>
+                    </View>
+
+                    <Text style={[styles.subSecHeader, { marginTop: 16 }]}>Active Lab Test Orders ({patientLabOrders.length})</Text>
+                    {patientLabOrders.length === 0 ? (
+                      <Text style={{ fontSize: 13, color: '#94A3B8', paddingVertical: 10 }}>No lab orders requested yet.</Text>
+                    ) : (
+                      patientLabOrders.map((ord, idx) => (
+                        <View key={ord.request_id || ord._id || idx} style={styles.labOrderItem}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.labOrderTests}>{(ord.tests_ordered || []).join(', ')}</Text>
+                            <Text style={styles.labOrderMeta}>Req ID: {ord.request_id} | Priority: {ord.priority || 'Routine'}</Text>
+                          </View>
+                          <View style={styles.labStatusPill}>
+                            <Text style={styles.labStatusPillText}>{ord.status}</Text>
+                          </View>
+                        </View>
+                      ))
+                    )}
                   </View>
-                </View>
-              </View>
-            )}
-
-            {/* Tab 5: SOAP Notes */}
-            {activeTab === 'soap' && (
-              <View style={styles.tabContentCard}>
-                <Text style={styles.tabHeading}>5. SOAP Session Clinical Notes</Text>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>S — Subjective (Patient's reported feelings, sleep)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={2}
-                    value={soapS}
-                    onChangeText={setSoapS}
-                    placeholder="Patient describes mood as 4/10; reports improved sleep..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>O — Objective (Observed behavior, MSE, vitals)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={2}
-                    value={soapO}
-                    onChangeText={setSoapO}
-                    placeholder="Calm, congruent affect, no active perceptual disturbance..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>A — Assessment (Impression & progress)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={2}
-                    value={soapA}
-                    onChangeText={setSoapA}
-                    placeholder="Depressive symptoms showing partial remission with current regimen..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={styles.fieldBox}>
-                  <Text style={styles.fieldLabel}>P — Plan (Therapy, med titration, review)</Text>
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={2}
-                    value={soapP}
-                    onChangeText={setSoapP}
-                    placeholder="Continue Escitalopram 10mg; start weekly CBT sessions..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Tab 6: Patient Vitals */}
-            {activeTab === 'vitals' && (
-              <View style={styles.tabContentCard}>
-                <Text style={styles.tabHeading}>6. Patient Physical Vitals</Text>
-
-                <View style={styles.vitalsGrid}>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>BP (mmHg)</Text>
-                    <TextInput style={styles.vitalField} value={bp} onChangeText={setBp} />
-                  </View>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>Pulse (bpm)</Text>
-                    <TextInput style={styles.vitalField} value={pulse} onChangeText={setPulse} keyboardType="numeric" />
-                  </View>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>Temp (°F)</Text>
-                    <TextInput style={styles.vitalField} value={temp} onChangeText={setTemp} keyboardType="numeric" />
-                  </View>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>SpO2 (%)</Text>
-                    <TextInput style={styles.vitalField} value={spo2} onChangeText={setSpo2} keyboardType="numeric" />
-                  </View>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>Weight (kg)</Text>
-                    <TextInput style={styles.vitalField} value={weight} onChangeText={setWeight} keyboardType="numeric" />
-                  </View>
-                  <View style={styles.vitalCard}>
-                    <Text style={styles.vitalTitle}>Height (cm)</Text>
-                    <TextInput style={styles.vitalField} value={height} onChangeText={setHeight} keyboardType="numeric" />
-                  </View>
-                </View>
-
-                <View style={styles.bmiDisplayCard}>
-                  <Text style={styles.bmiLabel}>Calculated Body Mass Index (BMI):</Text>
-                  <Text style={styles.bmiVal}>{calculateBmi()} kg/m²</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Bottom Actions Row */}
-            <View style={styles.actionsBottomRow}>
-              <TouchableOpacity
-                style={styles.printReportBtn}
-                onPress={handlePrintEmrReport}
-                activeOpacity={0.8}
-              >
-                <Feather name="printer" size={18} color="#0D9488" />
-                <Text style={styles.printReportText}>Print EMR PDF</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.saveEmrBtn}
-                onPress={handleSaveConsultation}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <>
-                    <Feather name="save" size={18} color="#FFF" />
-                    <Text style={styles.saveEmrText}>Save Consultation</Text>
-                  </>
                 )}
-              </TouchableOpacity>
-            </View>
+
+                {/* TAB 10: Clinical Timeline */}
+                {activeTab === 'timeline' && (
+                  <View style={styles.tabContentCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={styles.tabSectionTitle}>Chronological Clinical Timeline</Text>
+                      <TouchableOpacity
+                        style={styles.tabAddBtn}
+                        onPress={() => setShowAddEventModal(true)}
+                      >
+                        <Feather name="plus" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        <Text style={styles.tabAddBtnText}>Add Event</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {clinicalTimeline.length === 0 ? (
+                      <Text style={{ fontSize: 13, color: '#94A3B8', paddingVertical: 20, textAlign: 'center' }}>
+                        No timeline events recorded yet.
+                      </Text>
+                    ) : (
+                      clinicalTimeline.map((item, idx) => (
+                        <View key={idx} style={styles.timelineItem}>
+                          <View style={styles.timelineDot} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.timelineTitle}>{item.display || item.type}</Text>
+                            <Text style={styles.timelineTime}>
+                              {item.time ? new Date(item.time).toLocaleString() : 'Recent'} • {item.user || 'Clinician'}
+                            </Text>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
+
+                {/* TAB 11: Rehab & Routine */}
+                {activeTab === 'rehab' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>Psychiatric Rehabilitation & Daily Routine</Text>
+
+                    <Text style={styles.inputLabel}>Rehabilitation Modality</Text>
+                    <View style={styles.chipsRow}>
+                      {['Occupational', 'Social Skills', 'Cognitive Remediation', 'Physical Therapy'].map((r) => (
+                        <TouchableOpacity
+                          key={r}
+                          style={[styles.filterChip, rehabType === r && styles.filterChipActive]}
+                          onPress={() => setRehabType(r)}
+                        >
+                          <Text style={[styles.filterChipText, rehabType === r && styles.filterChipTextActive]}>
+                            {r}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Rehabilitation Plan & Milestones</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={rehabNotes}
+                      onChangeText={setRehabNotes}
+                      placeholder="Daily group engagement, activity therapy, life skills training..."
+                    />
+
+                    <Text style={styles.inputLabel}>Daily Ward Schedule & Routine</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      multiline
+                      value={routineNotes}
+                      onChangeText={setRoutineNotes}
+                      placeholder="Wakeup 06:30, Yoga 07:30, Breakfast 08:30, Psychotherapy 11:00..."
+                    />
+
+                    <TouchableOpacity style={styles.tabSaveBtn} onPress={handleSaveRehabAndRoutine} disabled={saving}>
+                      <Feather name="save" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.tabSaveBtnText}>{saving ? 'Saving...' : 'Save Rehab & Routine'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* TAB 12: EMR Audit Log */}
+                {activeTab === 'audit' && (
+                  <View style={styles.tabContentCard}>
+                    <Text style={styles.tabSectionTitle}>EMR Clinical Audit Trail</Text>
+                    <Text style={styles.tabSectionSubtitle}>Regulatory audit entries tracked for this admission.</Text>
+
+                    {emrAuditList.length === 0 ? (
+                      <Text style={{ fontSize: 13, color: '#94A3B8', paddingVertical: 14 }}>
+                        No audit events logged yet for this admission.
+                      </Text>
+                    ) : (
+                      emrAuditList.map((log, idx) => (
+                        <View key={log.id || log._id || idx} style={styles.auditItem}>
+                          <Text style={styles.auditActionText}>
+                            [{log.action?.toUpperCase()}] {log.entity_type}
+                          </Text>
+                          <Text style={styles.auditMetaText}>
+                            User: {log.user_name || log.user_id || 'Clinician'} | {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Recent'}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
 
-      {/* Add Medication Modal */}
-      <Modal visible={showAddMedModal} transparent animationType="fade">
-        <View style={styles.modalScrim}>
+      {/* QUICK NOTE MODAL */}
+      <Modal visible={showQuickNoteModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Drug Prescription</Text>
-              <TouchableOpacity onPress={() => setShowAddMedModal(false)}>
-                <Feather name="x" size={20} color="#64748B" />
+            <Text style={styles.modalTitle}>Add Rounding Note (SOAP)</Text>
+            <TextInput
+              style={[styles.textInput, { height: 45, marginBottom: 8 }]}
+              placeholder="Subjective (Patient complaints)"
+              value={quickNoteForm.s}
+              onChangeText={(v) => setQuickNoteForm((prev) => ({ ...prev, s: v }))}
+            />
+            <TextInput
+              style={[styles.textInput, { height: 45, marginBottom: 8 }]}
+              placeholder="Objective (Observations, findings)"
+              value={quickNoteForm.o}
+              onChangeText={(v) => setQuickNoteForm((prev) => ({ ...prev, o: v }))}
+            />
+            <TextInput
+              style={[styles.textInput, { height: 45, marginBottom: 8 }]}
+              placeholder="Assessment (Clinical state)"
+              value={quickNoteForm.a}
+              onChangeText={(v) => setQuickNoteForm((prev) => ({ ...prev, a: v }))}
+            />
+            <TextInput
+              style={[styles.textInput, { height: 45, marginBottom: 12 }]}
+              placeholder="Plan (Immediate instructions)"
+              value={quickNoteForm.p}
+              onChangeText={(v) => setQuickNoteForm((prev) => ({ ...prev, p: v }))}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowQuickNoteModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleQuickNoteSubmit} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Saving...' : 'Save Note'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
 
-            <View style={styles.fieldBox}>
-              <Text style={styles.fieldLabel}>Drug Name & Strength *</Text>
-              <TextInput
-                style={styles.textInputSingle}
-                value={newMedName}
-                onChangeText={setNewMedName}
-                placeholder="e.g. Tab. Lithium Carbonate 300mg"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            <View style={styles.twoColRow}>
-              <View style={[styles.fieldBox, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Dosage Frequency</Text>
+      {/* QUICK VITALS MODAL */}
+      <Modal visible={showQuickVitalsModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Record Quick Vitals</Text>
+            <View style={styles.formRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>BP (e.g. 120/80)</Text>
                 <TextInput
-                  style={styles.textInputSingle}
-                  value={newMedDose}
-                  onChangeText={setNewMedDose}
-                  placeholder="e.g. 1-0-1"
-                  placeholderTextColor="#94A3B8"
+                  style={styles.textInput}
+                  value={quickVitalsForm.bp}
+                  onChangeText={(v) => setQuickVitalsForm((prev) => ({ ...prev, bp: v }))}
                 />
               </View>
-              <View style={[styles.fieldBox, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Duration</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Heart Rate (bpm)</Text>
                 <TextInput
-                  style={styles.textInputSingle}
-                  value={newMedDuration}
-                  onChangeText={setNewMedDuration}
-                  placeholder="e.g. 30 days"
-                  placeholderTextColor="#94A3B8"
+                  style={styles.textInput}
+                  keyboardType="numeric"
+                  value={quickVitalsForm.hr}
+                  onChangeText={(v) => setQuickVitalsForm((prev) => ({ ...prev, hr: v }))}
                 />
               </View>
             </View>
+            <View style={styles.formRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Temp (°C)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  keyboardType="numeric"
+                  value={quickVitalsForm.temp}
+                  onChangeText={(v) => setQuickVitalsForm((prev) => ({ ...prev, temp: v }))}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>SpO2 (%)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  keyboardType="numeric"
+                  value={quickVitalsForm.spo2}
+                  onChangeText={(v) => setQuickVitalsForm((prev) => ({ ...prev, spo2: v }))}
+                />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowQuickVitalsModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleQuickVitalsSubmit} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Saving...' : 'Save Vitals'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
-            <View style={styles.fieldBox}>
-              <Text style={styles.fieldLabel}>Timing</Text>
-              <TextInput
-                style={styles.textInputSingle}
-                value={newMedTiming}
-                onChangeText={setNewMedTiming}
-                placeholder="e.g. After food / At bedtime"
-                placeholderTextColor="#94A3B8"
-              />
+      {/* ADD MEDICATION MODAL */}
+      <Modal visible={showAddMedModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Prescribe New Psychiatric Medication</Text>
+            <Text style={styles.inputLabel}>Drug Name & Formulation</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Tab. Escitalopram"
+              value={newMedDrug}
+              onChangeText={setNewMedDrug}
+            />
+            <View style={styles.formRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Dose</Text>
+                <TextInput style={styles.textInput} value={newMedDose} onChangeText={setNewMedDose} placeholder="10mg" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Frequency</Text>
+                <TextInput style={styles.textInput} value={newMedFreq} onChangeText={setNewMedFreq} placeholder="OD / BD" />
+              </View>
+            </View>
+            <View style={styles.formRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Route</Text>
+                <TextInput style={styles.textInput} value={newMedRoute} onChangeText={setNewMedRoute} placeholder="PO" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Duration</Text>
+                <TextInput style={styles.textInput} value={newMedDuration} onChangeText={setNewMedDuration} placeholder="30 days" />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddMedModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddMedication} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Saving...' : 'Prescribe'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ORDER LAB INVESTIGATIONS MODAL */}
+      <Modal visible={showOrderLabModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Order Lab Investigations</Text>
+            <Text style={styles.inputLabel}>Select Diagnostic Tests</Text>
+            <View style={styles.chipsRow}>
+              {COMMON_LAB_TESTS.map((test) => (
+                <TouchableOpacity
+                  key={test}
+                  style={[styles.filterChip, selectedLabTests.includes(test) && styles.filterChipActive]}
+                  onPress={() => handleToggleLabOrder(test)}
+                >
+                  <Text style={[styles.filterChipText, selectedLabTests.includes(test) && styles.filterChipTextActive]}>
+                    {test}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            <View style={styles.fieldBox}>
-              <Text style={styles.fieldLabel}>Special Instructions</Text>
-              <TextInput
-                style={styles.textInputSingle}
-                value={newMedInstructions}
-                onChangeText={setNewMedInstructions}
-                placeholder="e.g. Drink plenty of water"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
+            <Text style={[styles.inputLabel, { marginTop: 10 }]}>Clinical Notes / Priority</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Urgent - baseline lithium evaluation"
+              value={labClinicalNotes}
+              onChangeText={setLabClinicalNotes}
+            />
 
-            <TouchableOpacity style={styles.confirmAddMedBtn} onPress={handleAddMedication} activeOpacity={0.8}>
-              <Text style={styles.confirmAddMedText}>Add to Prescription</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowOrderLabModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleOrderLabInvestigations} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Ordering...' : 'Order Tests'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* DISCHARGE RECOMMENDATION MODAL */}
+      <Modal visible={showDischargeModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Inpatient Discharge Recommendation</Text>
+            <Text style={styles.inputLabel}>Condition at Discharge</Text>
+            <TextInput
+              style={styles.textInput}
+              value={dischargeForm.condition}
+              onChangeText={(v) => setDischargeForm((prev) => ({ ...prev, condition: v }))}
+            />
+            <Text style={styles.inputLabel}>Discharge Instructions</Text>
+            <TextInput
+              style={[styles.textInput, { height: 60 }]}
+              multiline
+              placeholder="Medication continuity, home precautions..."
+              value={dischargeForm.instructions}
+              onChangeText={(v) => setDischargeForm((prev) => ({ ...prev, instructions: v }))}
+            />
+            <Text style={styles.inputLabel}>Follow-Up Schedule</Text>
+            <TextInput
+              style={styles.textInput}
+              value={dischargeForm.followUp}
+              onChangeText={(v) => setDischargeForm((prev) => ({ ...prev, followUp: v }))}
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDischargeModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSaveBtn, { backgroundColor: '#059669' }]} onPress={handleQuickDischargeSubmit} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Saving...' : 'Authorize'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ADD HISTORY EVENT MODAL */}
+      <Modal visible={showAddEventModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Clinical History Event</Text>
+            <Text style={styles.inputLabel}>Event Title</Text>
+            <TextInput style={styles.textInput} placeholder="e.g. Previous hospitalization" value={newEventTitle} onChangeText={setNewEventTitle} />
+            <Text style={styles.inputLabel}>Date (YYYY-MM-DD)</Text>
+            <TextInput style={styles.textInput} value={newEventDate} onChangeText={setNewEventDate} />
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput style={[styles.textInput, { height: 60 }]} multiline value={newEventDesc} onChangeText={setNewEventDesc} />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddEventModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddHistoryEvent} disabled={saving}>
+                <Text style={styles.modalSaveBtnText}>{saving ? 'Saving...' : 'Add Event'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1194,276 +2233,943 @@ export const NewConsultationScreen: React.FC<NewConsultationScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  titleRow: { marginBottom: 16 },
-  screenTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
-  screenSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
-  infoCard: {
-    backgroundColor: '#F0FDFA',
-    borderColor: '#99F6E4',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+  root: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
-  infoIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#CCFBF1', justifyContent: 'center', alignItems: 'center' },
-  infoCardTitle: { fontSize: 15, fontWeight: '700', color: '#0F766E' },
-  infoCardText: { fontSize: 13, color: '#115E59', marginTop: 4, lineHeight: 18 },
-  secTitle: { fontSize: 14, fontWeight: '800', color: '#1E293B', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
-  patientSelectWrap: { gap: 10 },
-  patientItem: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 90,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#E6F4F1',
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  infoIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  infoCardText: {
+    fontSize: 12,
+    color: '#334155',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  secTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
+  },
+  patientSelectWrap: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  patientItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
     gap: 12,
   },
-  avatarCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#E0F2FE', justifyContent: 'center', alignItems: 'center' },
-  avatarLetter: { color: '#0284C7', fontWeight: '800', fontSize: 16 },
-  patientName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  patientMeta: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  openPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDFA', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
-  openPillText: { fontSize: 12, fontWeight: '700', color: '#0D9488' },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E6F4F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0D9488',
+  },
+  patientName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  patientMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  openPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#0D9488',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  openPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
   patientBanner: {
-    backgroundColor: '#0F766E',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  bannerPatientName: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  bannerPatientMeta: { fontSize: 12, color: '#CCFBF1', marginTop: 4 },
-  sessionBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#059669', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  sessionBadgeLocked: { backgroundColor: '#D97706' },
-  sessionBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFF' },
-  lockToggleBtn: { backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lockToggleText: { fontSize: 12, fontWeight: '700', color: '#0D9488' },
-  changePatientBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  changePatientText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
-  emrTabsScroll: { marginBottom: 14 },
-  emrTabsContainer: { gap: 8 },
-  emrTabChip: {
+  bannerPatientName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  bannerPatientMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  sessionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  sessionBadgeLocked: {
+    backgroundColor: '#D97706',
+  },
+  sessionBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  admissionBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  admissionBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  lockToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#0D9488',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+  },
+  lockToggleText: {
+    fontSize: 11,
+    color: '#0D9488',
+    fontWeight: '700',
+  },
+  printReportHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0D9488',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  printReportHeaderText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  changePatientBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    justifyContent: 'center',
+  },
+  changePatientText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 14,
+  },
+  modeSwitchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modeSwitchBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  modeSwitchText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  modeSwitchTextActive: {
+    color: '#0D9488',
+    fontWeight: '700',
+  },
+  boardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  emrTabChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  emrTabChipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
-  emrTabChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
+  boardCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  boardCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  widgetActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: '#E6F4F1',
+    borderRadius: 6,
+  },
+  widgetActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  vitalsPulseGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  vitalPulseBox: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  vitalPulseLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  vitalPulseVal: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginTop: 2,
+  },
+  vitalPulseUnit: {
+    fontSize: 9,
+    color: '#94A3B8',
+  },
+  impressionBox: {
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  impressionDiagTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  impressionDiagText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginTop: 2,
+  },
+  severityTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  severityTagText: {
+    fontSize: 10,
+    color: '#B45309',
+    fontWeight: '700',
+  },
+  riskMeterRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  riskMeterCol: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+  },
+  riskMeterLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  riskBarBg: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  riskBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  riskValText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  soapBriefBox: {
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  soapBriefLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0D9488',
+    letterSpacing: 0.5,
+  },
+  soapBriefText: {
+    fontSize: 12,
+    color: '#334155',
+    marginBottom: 4,
+  },
+  subSecHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  orderDrugName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  orderDrugMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  stopMedBtn: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  stopMedBtnText: {
+    color: '#DC2626',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  labOrderItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+  },
+  labOrderTests: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  labOrderMeta: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  labStatusPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  labStatusPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#D97706',
+    textTransform: 'uppercase',
+  },
+  roundingLogItem: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#0D9488',
+    paddingLeft: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  roundingDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  roundingDateText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  roundingAuthorText: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  roundingContentText: {
+    fontSize: 12,
+    color: '#334155',
+    marginTop: 2,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickActionTile: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  quickActionTileText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  emrTabsScroll: {
+    marginBottom: 12,
+  },
+  emrTabsContainer: {
+    gap: 6,
+  },
+  emrTabChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 5,
+  },
+  emrTabChipActive: {
+    backgroundColor: '#0D9488',
+    borderColor: '#0D9488',
+  },
+  emrTabChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  emrTabChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   tabContentCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 16,
   },
-  tabHeading: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginBottom: 14 },
-  fieldBox: { marginBottom: 12 },
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 },
-  textInputSingle: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
+  tabSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 4,
   },
-  textInputArea: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
-    minHeight: 70,
-    textAlignVertical: 'top',
+  tabSectionSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 12,
   },
-  twoColRow: { flexDirection: 'row', gap: 10 },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  siChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  textInput: {
     borderWidth: 1,
     borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#1E293B',
+    backgroundColor: '#FFFFFF',
   },
-  siChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  siChipDanger: { backgroundColor: '#EF4444', borderColor: '#EF4444' },
-  siChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  siChipTextActive: { color: '#FFF', fontWeight: '800' },
-  mseModuleBox: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  mseHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  mseHeading: { fontSize: 15, fontWeight: '800', color: '#0D9488' },
-  mseSub: { fontSize: 12, color: '#64748B', marginBottom: 12 },
-  mseCategoryRow: { marginBottom: 10 },
-  mseCatLabel: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 6, textTransform: 'capitalize' },
-  mseChip: {
+  formRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  filterChip: {
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  mseChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  mseChipDanger: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
-  mseChipText: { fontSize: 11, fontWeight: '600', color: '#475569' },
-  mseChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  diagRow: {
+  filterChipActive: {
+    backgroundColor: '#E6F4F1',
+    borderColor: '#0D9488',
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  filterChipTextActive: {
+    color: '#0D9488',
+    fontWeight: '700',
+  },
+  tabSaveBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#0D9488',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  tabSaveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  mseCategoryGroup: {
+    marginTop: 10,
+  },
+  mseCategoryHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  mseChip: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  mseChipSelected: {
+    backgroundColor: '#0D9488',
+    borderColor: '#0D9488',
+  },
+  mseChipDangerous: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444',
+  },
+  mseChipText: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  mseChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  diagSystemRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  diagSystemBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+  },
+  diagSystemBtnActive: {
+    backgroundColor: '#0D9488',
+  },
+  diagSystemText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  diagSystemTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  codeChip: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  codeChipActive: {
+    backgroundColor: '#E6F4F1',
+    borderColor: '#0D9488',
+  },
+  codeChipText: {
+    fontSize: 10,
+    color: '#475569',
+  },
+  codeChipTextActive: {
+    color: '#0D9488',
+    fontWeight: '700',
+  },
+  riskSliderBox: {
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  riskSliderTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  safetyPlanCheckbox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    marginTop: 10,
+  },
+  safetyPlanText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  tabAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D9488',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  tabAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  allergyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  allergyBannerText: {
+    fontSize: 11,
+    color: '#9F1239',
+    fontWeight: '600',
+    flex: 1,
+  },
+  medCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 6,
-    backgroundColor: '#FAFAFA',
+    marginBottom: 8,
   },
-  diagRowActive: { borderColor: '#0D9488', backgroundColor: '#F0FDFA' },
-  diagText: { fontSize: 13, color: '#334155', fontWeight: '600' },
-  diagTextActive: { color: '#0F766E', fontWeight: '800' },
-  sevChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  medCardStopped: {
     backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  sevChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  sevChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  sevChipTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  riskMeterSection: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  riskSectionTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 10 },
-  riskRow: { marginBottom: 10 },
-  riskName: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 4 },
-  riskLevelsRow: { flexDirection: 'row', gap: 6 },
-  riskLevelPill: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  riskLevelPillActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  riskLevelText: { fontSize: 11, fontWeight: '600', color: '#64748B' },
-  riskLevelTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  medsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  addMedBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#0D9488', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  addMedBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
-  emptyMeds: { padding: 30, alignItems: 'center', gap: 8 },
-  emptyMedsText: { fontSize: 13, color: '#94A3B8' },
-  medCard: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  medCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  medName: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
-  medDetailsRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  medBadge: { backgroundColor: '#E2E8F0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  medBadgeText: { fontSize: 11, fontWeight: '700', color: '#334155' },
-  medInstructions: { fontSize: 11, color: '#64748B', marginTop: 6, fontStyle: 'italic' },
-  therapyChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
-  therapyChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  therapyChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  therapyChipTextActive: { color: '#FFF', fontWeight: '800' },
-  labChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
-  labChipActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  labChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  labChipTextActive: { color: '#FFF', fontWeight: '800' },
-  vitalsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  vitalCard: { width: '48%', backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  vitalTitle: { fontSize: 11, fontWeight: '700', color: '#64748B' },
-  vitalField: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginTop: 4, paddingVertical: 2 },
-  bmiDisplayCard: { marginTop: 14, backgroundColor: '#F0FDFA', borderRadius: 8, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bmiLabel: { fontSize: 13, fontWeight: '600', color: '#0F766E' },
-  bmiVal: { fontSize: 16, fontWeight: '800', color: '#0D9488' },
-  actionsBottomRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  printReportBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#0D9488',
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  printReportText: { fontSize: 14, fontWeight: '800', color: '#0D9488' },
-  saveEmrBtn: {
-    flex: 1.4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#0D9488',
-    borderRadius: 12,
-    paddingVertical: 14,
-    elevation: 2,
-  },
-  saveEmrText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  modalScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalCard: { width: '100%', maxWidth: 360, backgroundColor: '#FFF', borderRadius: 16, padding: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
-  confirmAddMedBtn: { marginTop: 10, backgroundColor: '#0D9488', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  confirmAddMedText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
-  diagSysBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  diagSysBtnActive: { backgroundColor: '#0D9488', borderColor: '#0D9488' },
-  diagSysText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  diagSysTextActive: { color: '#FFFFFF', fontWeight: '800' },
-  diagSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 10,
   },
-  diagSearchInput: { flex: 1, paddingVertical: 8, fontSize: 13, color: '#0F172A' },
-  selectedDiagBadge: {
+  medCardName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  medCardMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  medStatusBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  medStatusActive: {
+    backgroundColor: '#D1FAE5',
+  },
+  medStatusStopped: {
+    backgroundColor: '#FEE2E2',
+  },
+  medStatusText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  stopActionBtn: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  stopActionBtnText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  soapCheckRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 6,
+  },
+  soapCheckText: {
+    fontSize: 12,
+    color: '#1E293B',
+    flex: 1,
+  },
+  miniYesNoBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: '#E2E8F0',
+  },
+  miniYesBtnActive: {
+    backgroundColor: '#0D9488',
+  },
+  miniNoBtnActive: {
+    backgroundColor: '#EF4444',
+  },
+  miniYesNoText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  vitalHistoryItem: {
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  vitalHistoryDate: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  vitalHistoryVals: {
+    fontSize: 12,
+    color: '#334155',
+    marginTop: 2,
+  },
+  therapeuticBox: {
     backgroundColor: '#F0FDFA',
     borderWidth: 1,
     borderColor: '#99F6E4',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
   },
-  selectedDiagLabel: { fontSize: 11, fontWeight: '700', color: '#0F766E' },
-  selectedDiagVal: { fontSize: 13, fontWeight: '800', color: '#134E4A', marginTop: 2 },
-  diagCodeSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  therapeuticTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  therapeuticSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  therapeuticBarBg: {
+    height: 12,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 6,
+    marginTop: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  therapeuticRange: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#A7F3D0',
+  },
+  therapeuticMarker: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#0D9488',
+  },
+  therapeuticValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#065F46',
+    marginTop: 6,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#0D9488',
+    marginTop: 4,
+  },
+  timelineTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  timelineTime: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  auditItem: {
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  auditActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  auditMetaText: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCancelBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: '#0D9488',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalSaveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

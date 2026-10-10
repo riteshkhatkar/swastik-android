@@ -21,8 +21,8 @@ export const api = axios.create({
 });
 
 // Normalized error extractor
-export function getApiErrorMessage(error: any): string {
-  if (!error) return 'An unexpected error occurred.';
+export function getApiErrorMessage(error: any, fallbackMessage: string = 'An unexpected error occurred.'): string {
+  if (!error) return fallbackMessage;
   if (typeof error === 'string') return error;
 
   if (axios.isAxiosError(error)) {
@@ -53,7 +53,7 @@ export function getApiErrorMessage(error: any): string {
     }
   }
 
-  return error.message || 'Request failed. Please try again.';
+  return error.message || fallbackMessage;
 }
 
 // In-memory token storage (synced with SecureStore in authStore)
@@ -438,21 +438,18 @@ export const doctorService = {
     return response.data;
   },
 
-  getProfile: async (username?: string): Promise<any> => {
-    const q = username ? `?username=${encodeURIComponent(username)}` : '';
-    const response = await api.get(`/api/doctor/profile${q}`);
+  getProfile: async (): Promise<any> => {
+    const response = await api.get('/api/doctor/profile');
     return response.data;
   },
 
-  updateProfile: async (data: any, username?: string): Promise<any> => {
-    const q = username ? `?username=${encodeURIComponent(username)}` : '';
-    const response = await api.put(`/api/doctor/profile${q}`, data);
+  updateProfile: async (data: any): Promise<any> => {
+    const response = await api.put('/api/doctor/profile', data);
     return response.data;
   },
 
-  changePassword: async (data: any, username?: string): Promise<any> => {
-    const q = username ? `?username=${encodeURIComponent(username)}` : '';
-    const response = await api.put(`/api/doctor/change-password${q}`, data);
+  changePassword: async (data: any): Promise<any> => {
+    const response = await api.put('/api/doctor/change-password', data);
     return response.data;
   },
 
@@ -516,6 +513,32 @@ export const emrService = {
   getActiveAdmission: async (uhid: string): Promise<any> => {
     const response = await api.get(`/api/emr/admissions/active/${encodeURIComponent(uhid)}`);
     return response.data;
+  },
+
+  resolveActiveAdmission: async (uhid: string, patientName?: string, doctorName: string = 'Dr. P. M. Chougule'): Promise<string> => {
+    try {
+      const active = await emrService.getActiveAdmission(uhid);
+      if (active && (active.admission_id || active.id)) {
+        return active.admission_id || active.id;
+      }
+      const list = await emrService.listAdmissions(uhid);
+      if (Array.isArray(list) && list.length > 0) {
+        const found = list.find((a: any) => a.status === 'active') || list[0];
+        if (found && (found.admission_id || found.id)) {
+          return found.admission_id || found.id;
+        }
+      }
+      const created = await emrService.createAdmission(uhid, {
+        clinical_status: 'Under Observation',
+        admission_reason: 'OPD Psychiatric Consultation',
+        ward: 'OPD Clinic',
+        patient_name: patientName,
+      }, doctorName);
+      return created?.admission_id || created?.id || `ADM-${uhid}`;
+    } catch (err) {
+      console.log('Error resolving active admission:', err);
+      return `ADM-${uhid}`;
+    }
   },
 
   getAdmission: async (admissionId: string): Promise<any> => {

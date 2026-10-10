@@ -15,13 +15,14 @@ import { Colors } from '../constants/theme';
 import { AppHeader } from '../components/AppHeader';
 import { StatusBadge, LabOrderStatus } from '../components/StatusBadge';
 import { LabReportModal } from '../components/LabReportModal';
-import { labService } from '../services/api';
+import { labService, getApiErrorMessage } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
 interface LabOrder {
   orderId: string;
   patientName: string;
+  uhid?: string;
   tests: string;
   status: LabOrderStatus;
   dateTime: string;
@@ -38,90 +39,7 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
   const [selectedReport, setSelectedReport] = useState<LabOrder | null>(null);
   const [orders, setOrders] = useState<LabOrder[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Baseline reference dataset
-  const fallbackOrders: LabOrder[] = [
-    {
-      orderId: 'LAB-DMY-20260309-001',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'CBC, Blood Sugar (F/R/PP)',
-      status: 'Requested',
-      dateTime: '9/25/2026, 8:32 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-002',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'TSH, T3, T4',
-      status: 'Sample collected',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-003',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'LFT, Lipid Panel',
-      status: 'Sample in progress',
-      dateTime: '9/30/2026, 8:09 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-004',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'Urine Drug Screen, Routine Urine Analysis',
-      status: 'Test in process',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-005',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'CBC, Vitamin B12',
-      status: 'Results entered',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-006',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'Lithium, TSH',
-      status: 'Report ready',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: true,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-007',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'CBC, LFT, Vitamin D3',
-      status: 'Sample in progress',
-      dateTime: '9/30/2026, 8:09 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-008',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'Blood Sugar (F/R/PP)',
-      status: 'Report ready',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: true,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-009',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'CBC, TSH',
-      status: 'Acknowledged',
-      dateTime: '9/30/2026, 8:39 AM',
-      reportReady: false,
-    },
-    {
-      orderId: 'LAB-DMY-20260309-010',
-      patientName: 'Prerana Suryawanshi',
-      tests: 'Urine Routine Examination',
-      status: 'Sample collected',
-      dateTime: '9/30/2026, 7:09 AM',
-      reportReady: false,
-    },
-  ];
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLiveLabOrders();
@@ -130,9 +48,10 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
   const loadLiveLabOrders = async () => {
     try {
       setLoading(true);
-      const res = await labService.getPendingOrders();
-      if (res && Array.isArray(res) && res.length > 0) {
-        const mapped: LabOrder[] = res.slice(0, 30).map((item: any) => {
+      setError(null);
+      const res = await labService.getLabTestRequests({ limit: 100 });
+      if (res && Array.isArray(res)) {
+        const mapped: LabOrder[] = res.map((item: any) => {
           const rawStatus = (item.status || 'Requested').toLowerCase();
           let formattedStatus: LabOrderStatus = 'Requested';
           let isReady = false;
@@ -142,7 +61,7 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
             isReady = true;
           } else if (rawStatus.includes('sample_collected') || rawStatus.includes('sample collected')) {
             formattedStatus = 'Sample collected';
-          } else if (rawStatus.includes('progress')) {
+          } else if (rawStatus.includes('progress') && rawStatus.includes('sample')) {
             formattedStatus = 'Sample in progress';
           } else if (rawStatus.includes('test') || rawStatus.includes('process')) {
             formattedStatus = 'Test in process';
@@ -164,11 +83,12 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
                 hour: 'numeric',
                 minute: '2-digit',
               })
-            : '9/30/2026, 7:09 AM';
+            : '—';
 
           return {
-            orderId: item.request_id || item.order_id || 'LAB-2026-001',
-            patientName: item.patient_name || 'Prerana Suryawanshi',
+            orderId: item.request_id || item.order_id || item.id || 'LAB-ORD',
+            patientName: item.patient_name || item.patient_id || 'Unknown Patient',
+            uhid: item.patient_id || item.uhid,
             tests: testsStr,
             status: formattedStatus,
             dateTime: dateStr,
@@ -177,11 +97,12 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
         });
         setOrders(mapped);
       } else {
-        setOrders(fallbackOrders);
+        setOrders([]);
       }
-    } catch (err) {
-      console.log('Using cached/baseline lab orders');
-      setOrders(fallbackOrders);
+    } catch (err: any) {
+      console.error('Failed to load lab orders:', err);
+      setError(getApiErrorMessage(err, 'Failed to fetch live lab orders from server.'));
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -198,12 +119,10 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
     'Acknowledged',
   ];
 
-  const currentList = orders.length > 0 ? orders : fallbackOrders;
-
   const filteredOrders =
     selectedFilter === 'All statuses'
-      ? currentList
-      : currentList.filter((o) => o.status.toLowerCase() === selectedFilter.toLowerCase());
+      ? orders
+      : orders.filter((o) => o.status.toLowerCase() === selectedFilter.toLowerCase());
 
   return (
     <View style={styles.root}>
@@ -249,6 +168,31 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color="#1A7B76" />
+                </View>
+              ) : error ? (
+                <View style={{ padding: 24, width: 890, alignItems: 'center' }}>
+                  <Feather name="alert-circle" size={24} color="#EF4444" style={{ marginBottom: 6 }} />
+                  <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center' }}>{error}</Text>
+                  <TouchableOpacity
+                    onPress={loadLiveLabOrders}
+                    style={{ marginTop: 10, paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#1A7B76', borderRadius: 6 }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : filteredOrders.length === 0 ? (
+                <View style={{ padding: 28, width: 890, alignItems: 'center' }}>
+                  <Feather name="inbox" size={28} color="#94A3B8" style={{ marginBottom: 6 }} />
+                  <Text style={{ color: '#64748B', fontSize: 14, fontWeight: '500' }}>No lab orders found</Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                    {selectedFilter !== 'All statuses' ? `No orders with status "${selectedFilter}"` : 'No laboratory test requests in system.'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={loadLiveLabOrders}
+                    style={{ marginTop: 12, paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#E0F2F1', borderRadius: 6 }}
+                  >
+                    <Text style={{ color: '#1A7B76', fontSize: 12, fontWeight: '600' }}>Refresh Orders</Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 filteredOrders.map((order, idx) => (
@@ -332,6 +276,7 @@ export const LabOrdersScreen: React.FC<LabOrdersScreenProps> = ({ onOpenDrawer }
           onClose={() => setSelectedReport(null)}
           orderId={selectedReport.orderId}
           patientName={selectedReport.patientName}
+          uhid={selectedReport.uhid}
           tests={selectedReport.tests}
           dateStr={selectedReport.dateTime}
         />

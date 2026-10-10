@@ -224,6 +224,7 @@ export const WardRoundsScreen: React.FC<WardRoundsScreenProps> = ({
                               uhid: pUhid,
                               age: patient.age || 30,
                               gender: patient.gender || 'General',
+                              admission_id: patient.admission_id || patient.id || patient._id,
                             })
                           }
                         >

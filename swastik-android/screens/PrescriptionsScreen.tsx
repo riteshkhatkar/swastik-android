@@ -1,4 +1,3 @@
-// swastik-android/screens/PrescriptionsScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  TextInput,
   Dimensions,
   Alert,
   ActivityIndicator,
@@ -29,33 +29,65 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [livePrescriptions, setLivePrescriptions] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrescriptions();
   }, []);
 
-  const loadPrescriptions = async () => {
+  const loadPrescriptions = async (search?: string) => {
     try {
       setLoading(true);
-      const res = await clinicalApi.getPrescriptions();
+      setError(null);
+      const term = search !== undefined ? search : searchQuery;
+      const res = await clinicalApi.getPrescriptions(term.trim() ? { search: term.trim() } : undefined);
       if (res && Array.isArray(res)) {
         setLivePrescriptions(res);
+      } else {
+        setLivePrescriptions([]);
       }
     } catch (err: any) {
       console.log('Error loading prescriptions:', err);
+      setError(getApiErrorMessage(err, 'Could not retrieve prescriptions from clinical database.'));
+      setLivePrescriptions([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  const handleSearchSubmit = () => {
+    loadPrescriptions(searchQuery);
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
-    loadPrescriptions();
+    loadPrescriptions(searchQuery);
+  };
+
+  const extractMeds = (rx: any) => {
+    const list = rx.medications || rx.medicines || rx.data?.medications || [];
+    if (!Array.isArray(list)) return [];
+    return list.map((m: any) => ({
+      name: m.name || m.drug_name || 'Medication',
+      dose: m.dose || m.dosage || m.frequency || '1-0-1',
+      timing: m.timing || m.instructions || 'After food',
+      duration: m.duration || '30 days',
+    }));
   };
 
   const handlePrintRx = async (rx: any) => {
     try {
+      const meds = extractMeds(rx);
+      const dateFormatted = rx.created_at
+        ? new Date(rx.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })
+        : (rx.date || 'Today');
+
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -79,8 +111,9 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
             <p>Station Road, Kolhapur | Dr. P. M. Chougule (MD Psychiatry)</p>
           </div>
           <div class="info">
-            <p><strong>Rx ID:</strong> ${rx.id || rx._id || 'RX-2026-901'} | <strong>Date:</strong> ${rx.date || 'Today'}</p>
+            <p><strong>Rx ID:</strong> ${rx.id || rx._id || 'RX-2026-901'} | <strong>Date:</strong> ${dateFormatted}</p>
             <p><strong>Patient Name:</strong> ${rx.patientName || rx.patient_name || 'Patient'} | <strong>UHID:</strong> ${rx.uhid}</p>
+            ${rx.admission_id ? `<p><strong>Admission Context:</strong> ${rx.admission_id}</p>` : ''}
           </div>
           <div class="rx-title">&#8478;</div>
           <table>
@@ -93,14 +126,14 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
               </tr>
             </thead>
             <tbody>
-              ${(rx.medicines || [])
+              ${meds
                 .map(
                   (m: any) => `
                 <tr>
                   <td><strong>${m.name}</strong></td>
-                  <td>${m.dose || '1-0-1'}</td>
-                  <td>${m.timing || 'After food'}</td>
-                  <td>${m.duration || '30 days'}</td>
+                  <td>${m.dose}</td>
+                  <td>${m.timing}</td>
+                  <td>${m.duration}</td>
                 </tr>
               `
                 )
@@ -113,7 +146,7 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
         </body>
         </html>
       `;
-      await printOrSharePdf(htmlContent, 'Prescription_' + (rx.uhid || rx.id));
+      await printOrSharePdf(htmlContent, 'Prescription_' + (rx.uhid || rx.id || 'Rx'));
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not print Rx');
     }
@@ -136,15 +169,56 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
           Review issued Rx medications, dosages, and export clinical scripts.
         </Text>
 
+        {/* Patient / UHID / Drug Search Input */}
+        <View style={styles.searchBarContainer}>
+          <Feather name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by UHID, patient name, or medication..."
+            placeholderTextColor="#94A3B8"
+            value={searchQuery}
+            onChangeText={(txt) => {
+              setSearchQuery(txt);
+              if (txt === '') loadPrescriptions('');
+            }}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery('');
+                loadPrescriptions('');
+              }}
+              style={{ padding: 4 }}
+            >
+              <Feather name="x" size={16} color="#64748B" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {loading && !refreshing ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
             <ActivityIndicator size="small" color="#1A7B76" />
+          </View>
+        ) : error ? (
+          <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FEE2E2' }}>
+            <Feather name="alert-circle" size={32} color="#EF4444" style={{ marginBottom: 8 }} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#991B1B', textAlign: 'center' }}>{error}</Text>
+            <TouchableOpacity
+              onPress={() => loadPrescriptions(searchQuery)}
+              style={{ marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#1A7B76', borderRadius: 6 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 13 }}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : livePrescriptions.length === 0 ? (
           <View style={{ padding: 40, alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12 }}>
             <MaterialCommunityIcons name="pill-off" size={44} color="#94A3B8" />
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 10 }}>No Prescriptions Found</Text>
-            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Prescriptions created during patient consultations will appear here.</Text>
+            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, textAlign: 'center' }}>
+              {searchQuery ? `No records found matching "${searchQuery}".` : 'Prescriptions created during patient consultations will appear here.'}
+            </Text>
           </View>
         ) : (
           /* List of Prescriptions */
@@ -165,7 +239,7 @@ export const PrescriptionsScreen: React.FC<PrescriptionsScreenProps> = ({ onOpen
 
                 {/* Medicines Table/List */}
                 <View style={styles.medsBox}>
-                  {(rx.medicines || []).map((m: any, idx: number) => (
+                  {extractMeds(rx).map((m: any, idx: number) => (
                     <View key={idx} style={styles.medRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.medName}>{m.name}</Text>
@@ -227,6 +301,23 @@ const styles = StyleSheet.create({
     color: '#0D9488',
     fontWeight: '500',
     marginBottom: 16,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F1E36',
+    padding: 0,
   },
   listContainer: {
     gap: 14,

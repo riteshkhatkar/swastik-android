@@ -15,7 +15,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
 import { AppHeader } from '../components/AppHeader';
 import { useAuthStore } from '../store/authStore';
-import { doctorApi } from '../services/api';
+import { doctorApi, getApiErrorMessage } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -41,8 +41,14 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  // Doctor custom questions state
+  const [customQuestions, setCustomQuestions] = useState<any[]>([]);
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [savingQuestions, setSavingQuestions] = useState(false);
+
   useEffect(() => {
     loadLiveProfile();
+    loadCustomQuestions();
   }, [user]);
 
   const loadLiveProfile = async () => {
@@ -56,12 +62,26 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
         if (profile.specialization) setSpecialization(profile.specialization);
         if (profile.qualification) setQualification(profile.qualification);
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.log('Error loading doctor profile:', err);
       if (user?.full_name) {
         setFullName(user.full_name);
       }
     } finally {
       setLoadingProfile(false);
+    }
+  };
+
+  const loadCustomQuestions = async () => {
+    try {
+      const res = await doctorApi.getCustomQuestions();
+      if (res && Array.isArray(res.questions)) {
+        setCustomQuestions(res.questions);
+      } else if (Array.isArray(res)) {
+        setCustomQuestions(res);
+      }
+    } catch (err) {
+      console.log('Error loading custom questions:', err);
     }
   };
 
@@ -79,7 +99,7 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
         phone: phone.trim(),
         specialization: specialization.trim(),
         qualification: qualification.trim(),
-      }).catch(() => null);
+      });
 
       updateUserProfile({
         full_name: fullName.trim(),
@@ -87,14 +107,9 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
         phone: phone.trim(),
       });
 
-      Alert.alert('Profile Updated', 'Doctor profile has been updated and synchronized.');
+      Alert.alert('Profile Updated', 'Doctor profile has been updated and synchronized with the clinical server.');
     } catch (err: any) {
-      updateUserProfile({
-        full_name: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-      });
-      Alert.alert('Profile Updated', 'Profile details updated successfully.');
+      Alert.alert('Update Failed', getApiErrorMessage(err, 'Failed to update doctor profile on server.'));
     } finally {
       setUpdatingProfile(false);
     }
@@ -109,6 +124,10 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
       Alert.alert('Password Mismatch', 'New password and confirm password do not match.');
       return;
     }
+    if (newPassword.length < 6) {
+      Alert.alert('Weak Password', 'New password must be at least 6 characters.');
+      return;
+    }
 
     setUpdatingPassword(true);
     try {
@@ -121,12 +140,36 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      Alert.alert('Security Update', 'Account password successfully updated.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      Alert.alert('Password Change Failed', getApiErrorMessage(err, 'Current password may be incorrect or session expired.'));
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    if (!newQuestionText.trim()) return;
+    const newQ = {
+      id: `q_${Date.now()}`,
+      text: newQuestionText.trim(),
+      isCustom: true,
+    };
+    setCustomQuestions([...customQuestions, newQ]);
+    setNewQuestionText('');
+  };
+
+  const handleRemoveQuestion = (id: string) => {
+    setCustomQuestions(customQuestions.filter((q) => q.id !== id));
+  };
+
+  const handleSaveQuestions = async () => {
+    try {
+      setSavingQuestions(true);
+      await doctorApi.updateCustomQuestions(customQuestions);
+      Alert.alert('Saved', 'Custom consultation checklist questions updated successfully.');
+    } catch (err: any) {
+      Alert.alert('Error', getApiErrorMessage(err, 'Failed to save custom questions.'));
+    } finally {
+      setSavingQuestions(false);
     }
   };
 
@@ -290,6 +333,95 @@ export const SettingsProfileScreen: React.FC<SettingsProfileScreenProps> = ({ on
                 <>
                   <Ionicons name="lock-closed" size={17} color="#FFFFFF" style={{ marginRight: 8 }} />
                   <Text style={styles.actionBtnText}>Change Password</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* CARD 3: Consultation Custom Questions */}
+          <View style={styles.card}>
+            {/* Top Icon Badge */}
+            <View style={styles.iconCircle}>
+              <Feather name="help-circle" size={24} color="#1A7B76" />
+            </View>
+
+            <Text style={styles.cardHeading}>Consultation Checklist Questions</Text>
+            <Text style={styles.cardSub}>
+              Customize clinical examination questions and prompts for psychiatric consultations.
+            </Text>
+
+            {/* Existing Questions List */}
+            <View style={{ marginBottom: 14 }}>
+              {customQuestions.length === 0 ? (
+                <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginVertical: 6 }}>
+                  No custom checklist questions configured. Add below.
+                </Text>
+              ) : (
+                customQuestions.map((q, idx) => (
+                  <View
+                    key={q.id || idx}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: '#F8FAFC',
+                      padding: 10,
+                      borderRadius: 8,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: '#E2E8F0',
+                    }}
+                  >
+                    <Text style={{ flex: 1, fontSize: 13, color: '#1E293B', fontWeight: '500' }}>
+                      {idx + 1}. {q.text}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveQuestion(q.id)}
+                      style={{ padding: 4, marginLeft: 8 }}
+                    >
+                      <Feather name="trash-2" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Add New Question Row */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+              <TextInput
+                style={[styles.fieldInput, { flex: 1 }]}
+                value={newQuestionText}
+                onChangeText={setNewQuestionText}
+                placeholder="e.g. History of sleep disturbance..."
+                placeholderTextColor="#94A3B8"
+              />
+              <TouchableOpacity
+                onPress={handleAddQuestion}
+                style={{
+                  backgroundColor: '#1A7B76',
+                  borderRadius: 10,
+                  paddingHorizontal: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name="plus" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Save Questions Button */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.8}
+              onPress={handleSaveQuestions}
+              disabled={savingQuestions}
+            >
+              {savingQuestions ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Feather name="check-circle" size={17} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.actionBtnText}>Save Checklist Questions</Text>
                 </>
               )}
             </TouchableOpacity>

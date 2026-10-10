@@ -1,5 +1,5 @@
 // swastik-android/components/LabReportModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -17,6 +17,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { printOrSharePdf } from '../utils/pdfGenerator';
 import { Colors } from '../constants/theme';
+import { labService } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -40,15 +41,38 @@ export const LabReportModal: React.FC<LabReportModalProps> = ({
   dateStr = 'September 30, 2026',
 }) => {
   const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Generate Pathology Lab Test rows
-  const testResults = [
-    { name: 'Hemoglobin (Hb)', result: '13.8', unit: 'g/dL', normal: '13.0 - 17.0', status: 'Normal' },
-    { name: 'Total WBC Count', result: '7,200', unit: '/cumm', normal: '4,000 - 11,000', status: 'Normal' },
-    { name: 'Serum Lithium Level', result: '0.85', unit: 'mEq/L', normal: '0.60 - 1.20', status: 'Normal' },
-    { name: 'Thyroid Stimulating Hormone (TSH)', result: '2.45', unit: 'uIU/mL', normal: '0.40 - 4.50', status: 'Normal' },
-    { name: 'Fasting Blood Sugar (FBS)', result: '94', unit: 'mg/dL', normal: '70 - 100', status: 'Normal' },
-  ];
+  useEffect(() => {
+    if (visible && orderId) {
+      loadReportData();
+    }
+  }, [visible, orderId]);
+
+  const loadReportData = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      const res = await labService.getLabReportData(orderId);
+      setReportData(res);
+    } catch (err: any) {
+      console.log('Error fetching lab report:', err);
+      setErrorMsg(err?.response?.data?.detail || err?.message || 'Unable to retrieve lab report details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rawResults: any[] = Array.isArray(reportData?.results) ? reportData.results : [];
+  const testResults = rawResults.map((r: any) => ({
+    name: r.test_catalog_id || r.test_name || 'Diagnostic Parameter',
+    result: r.value !== null && r.value !== undefined ? String(r.value) : (r.value_text || 'Evaluated'),
+    unit: r.unit || '',
+    normal: r.reference_range || 'Normal Reference',
+    status: r.is_critical ? 'Critical' : r.is_abnormal ? 'Abnormal' : 'Normal',
+  }));
 
   const handlePrintOrShare = async () => {
     try {
@@ -69,6 +93,8 @@ export const LabReportModal: React.FC<LabReportModalProps> = ({
             th { background-color: #f1f5f9; color: #475569; text-align: left; padding: 10px; border-bottom: 2px solid #cbd5e1; }
             td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; }
             .normal-pill { color: #065f46; background: #d1fae5; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+            .crit-pill { color: #991b1b; background: #fee2e2; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+            .abn-pill { color: #9a3412; background: #ffedd5; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
             .footer { margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }
             .sign { text-align: right; }
           </style>
@@ -90,7 +116,9 @@ export const LabReportModal: React.FC<LabReportModalProps> = ({
             <div><strong>Ref Doctor:</strong> Dr. P. M. Chougule (MD Psychiatry)</div>
             <div><strong>Test(s):</strong> ${tests}</div>
           </div>
-          <table>
+          ${
+            testResults.length > 0
+              ? `<table>
             <thead>
               <tr>
                 <th>Test Parameter</th>
@@ -109,13 +137,18 @@ export const LabReportModal: React.FC<LabReportModalProps> = ({
                   <td><strong>${t.result}</strong></td>
                   <td>${t.normal}</td>
                   <td>${t.unit}</td>
-                  <td><span class="normal-pill">${t.status}</span></td>
+                  <td><span class="${t.status === 'Critical' ? 'crit-pill' : t.status === 'Abnormal' ? 'abn-pill' : 'normal-pill'}">${t.status}</span></td>
                 </tr>
               `
                 )
                 .join('')}
             </tbody>
-          </table>
+          </table>`
+              : `<div style="padding: 24px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 6px; margin-top: 16px;">
+                  <p style="font-weight: 600; margin: 0;">Test results are currently being processed or awaiting verification.</p>
+                  <p style="font-size: 12px; margin-top: 4px;">Status: ${reportData?.request?.status || 'In Progress'}</p>
+                 </div>`
+          }
           <div class="footer">
             <div>Verified by: Senior Biochemist & Pathologist</div>
             <div class="sign">
@@ -196,20 +229,59 @@ export const LabReportModal: React.FC<LabReportModalProps> = ({
                 <Text style={[styles.thText, { flex: 1.4 }]}>Reference</Text>
                 <Text style={[styles.thText, { flex: 1 }]}>Status</Text>
               </View>
-              {testResults.map((item, index) => (
-                <View key={index} style={styles.tableRow}>
-                  <Text style={[styles.tdBold, { flex: 2 }]} numberOfLines={2}>
-                    {item.name}
-                  </Text>
-                  <Text style={[styles.tdValue, { flex: 1.2 }]}>
-                    {item.result} <Text style={styles.unitText}>{item.unit}</Text>
-                  </Text>
-                  <Text style={[styles.tdText, { flex: 1.4 }]}>{item.normal}</Text>
-                  <View style={[styles.statusPill, { flex: 1 }]}>
-                    <Text style={styles.statusPillText}>{item.status}</Text>
-                  </View>
+              {loading ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#1A7B76" />
+                  <Text style={{ marginTop: 8, fontSize: 13, color: '#64748B' }}>Loading laboratory findings...</Text>
                 </View>
-              ))}
+              ) : errorMsg ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center' }}>{errorMsg}</Text>
+                </View>
+              ) : testResults.length === 0 ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '500', textAlign: 'center' }}>
+                    Laboratory test results have not been finalized or entered yet.
+                  </Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 4 }}>
+                    Current Order Status: {reportData?.request?.status || 'Processing'}
+                  </Text>
+                </View>
+              ) : (
+                testResults.map((item, index) => (
+                  <View key={index} style={styles.tableRow}>
+                    <Text style={[styles.tdBold, { flex: 2 }]} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.tdValue, { flex: 1.2 }]}>
+                      {item.result} <Text style={styles.unitText}>{item.unit}</Text>
+                    </Text>
+                    <Text style={[styles.tdText, { flex: 1.4 }]}>{item.normal}</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        {
+                          flex: 1,
+                          backgroundColor:
+                            item.status === 'Critical' ? '#FEE2E2' : item.status === 'Abnormal' ? '#FFEDD5' : '#D1FAE5',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          {
+                            color:
+                              item.status === 'Critical' ? '#991B1B' : item.status === 'Abnormal' ? '#9A3412' : '#065F46',
+                          },
+                        ]}
+                      >
+                        {item.status}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
 
             {/* Doctor Verification */}
