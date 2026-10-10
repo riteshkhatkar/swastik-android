@@ -1,762 +1,450 @@
-# 📱 Swastik Hospital Android App — Granular Click-by-Click Testing Guide
+# 📱 Simple Step-by-Step Testing Guide for Swastik Hospital Android App
 
-> **Target App:** Swastik Android (Expo SDK 57 / React Native 0.86)  
-> **Server:** `https://swastik.orelse.ai` (FastAPI + MongoDB)  
-> **Metro Server URL:** `exp://192.168.1.5:8081`  
-> **Document Purpose:** Small-to-small, click-by-click manual QA testing procedure.
+Welcome! This guide is written in **plain, simple language**. You don't need any technical knowledge to follow it. Just follow the numbered steps, tap the buttons mentioned, and check the results on your phone screen.
 
 ---
 
-## 📑 Table of Contents
-1. [Prerequisites & App Launch](#step-0-prerequisites--app-launch)
-2. [Step 1: Role Selection & Role-Guard Security Testing](#step-1-role-selection--role-guard-security-testing)
-3. [Step 2: Receptionist Dashboard & Live Counts](#step-2-receptionist-dashboard--live-counts)
-4. [Step 3: Continuous Patient Registration Workflow](#step-3-continuous-patient-registration-workflow)
-5. [Step 4: Patient Directory, Search & Server Pagination](#step-4-patient-directory-search--server-pagination)
-6. [Step 5: Appointments, Reason Cancellation & Queue Tokens](#step-5-appointments-reason-cancellation--queue-tokens)
-7. [Step 6: Inpatient Admission, Consent Upload & Discharge](#step-6-inpatient-admission-consent-upload--discharge)
-8. [Step 7: Room Allocation & Status Toggle](#step-7-room-allocation--status-toggle)
-9. [Step 8: Receptionist Billing & Staff Attribution](#step-8-receptionist-billing--staff-attribution)
-10. [Step 9: Doctor Workstation (OPD vs. IPD Ward Rounds)](#step-9-doctor-workstation-opd-vs-ipd-ward-rounds)
-11. [Step 10: Ward Round Board (Mode A Widgets)](#step-10-ward-round-board-mode-a-widgets)
-12. [Step 11: Comprehensive EMR Workspace (Mode B — 12 Tabs)](#step-11-comprehensive-emr-workspace-mode-b--12-tabs)
-13. [Step 12: Order Lab Investigation from EMR](#step-12-order-lab-investigation-from-emr)
-14. [Step 13: Clinical PDF Dossier Generation](#step-13-clinical-pdf-dossier-generation)
-15. [Step 14: Diagnostic Lab Orders & Real Report Viewer](#step-14-diagnostic-lab-orders--real-report-viewer)
-16. [Step 15: Prescriptions Search & Rx Script Printing](#step-15-prescriptions-search--rx-script-printing)
-17. [Step 16: Medical Reports & Hospital MIS Analytics](#step-16-medical-reports--hospital-mis-analytics)
-18. [Step 17: Doctor Profile, Password & Custom Checklist Questions](#step-17-doctor-profile-password--custom-checklist-questions)
-19. [Step 18: Patient Self-Service Portal Authentication](#step-18-patient-self-service-portal-authentication)
-20. [Step 19: Hardware Android Back Button & Logout](#step-19-hardware-android-back-button--logout)
+## ⚡ Part 1: How to Run the App in Expo (Commands)
+
+Open **PowerShell** or **Command Prompt** on your computer, and follow these exact steps:
+
+### Step 1: Go to the android project folder
+Copy and paste this command, then press **Enter**:
+```powershell
+cd c:\Users\Windows\Downloads\swastik-main\swastik-android
+```
+
+### Step 2: Start the Expo server
+Choose **Option A** (if your phone and PC use the same Wi-Fi) or **Option B** (if you have connection trouble or use mobile data):
+
+#### Option A: Normal Wi-Fi Mode (Fastest)
+```powershell
+npx expo start -c
+```
+
+#### Option B: Tunnel Mode (Works on any network / mobile data)
+```powershell
+npx expo start --tunnel -c
+```
+
+*(Note: The `-c` means clear cache, so all your newest updates load fresh without old bugs.)*
 
 ---
 
-## Step 0: Prerequisites & App Launch
+### Step 3: Open the App on Your Android Phone
 
-### 0.1 Start Metro Bundler (if not already running)
-1. Open PowerShell on your computer.
-2. Navigate to: `cd c:\Users\Windows\Downloads\swastik-main\swastik-android`
-3. Run: `npx expo start -c`
-4. Notice the line: `Waiting on http://localhost:8081`
-
-### 0.2 Open on Android Phone
-1. Connect your Android phone to the same Wi-Fi network (`192.168.1.x`).
-2. Open the **Expo Go** application on your phone.
-3. Tap **"Enter URL manually"**.
-4. Type exactly:
-   ```text
-   exp://192.168.1.5:8081
-   ```
-5. Tap **Connect**.
-6. The bundle will build to 100% and the splash screen will appear.
+1. Install the free **Expo Go** app from Google Play Store if you haven't already.
+2. Make sure your phone is connected to the same Wi-Fi (if using Option A).
+3. Open the **Expo Go** app on your phone.
+4. Tap **"Scan QR code"** and point your phone camera at the big square QR code on your computer screen.  
+   *(Or tap **"Enter URL manually"** and type: `exp://192.168.1.5:8081` then tap Connect).*
+5. Wait a few seconds for the loading bar to reach 100%. The app will open!
 
 ---
 
-## Step 1: Role Selection & Role-Guard Security Testing
+## 🔑 Login Accounts Cheat-Sheet
 
-### Test 1.1: Startup Appearance
-- [ ] **Action:** Look at the screen right after the splash screen finishes.
-- [ ] **Verification:**
-  - The top header shows the Swastik logo and title *"Select Workspace / Role"*.
-  - You see 6 role cards: **Doctor**, **Receptionist**, **Admin**, **Billing**, **Lab**, **Patient Portal**.
-  - **CRITICAL:** None of the cards are dark, selected, or focused by default. All cards are neutral white with teal accents.
+Keep this handy. Whenever a test asks you to log in, use these exact words:
 
-### Test 1.2: Role Selection Micro-Animation
-- [ ] **Action:** Tap the **Doctor** card once.
-- [ ] **Verification:**
-  - The card plays a subtle scale/selection feedback animation.
-  - The screen navigates to the **Doctor Authentication** screen.
-  - The screen header says *"Doctor Portal Login"*.
+| If Testing As... | Type Username: | Type Password: | What This Role Can Do: |
+| :--- | :--- | :--- | :--- |
+| **Doctor** | `doctor` | `doctor123` | Patient EMR, Prescriptions, Ward Rounds, Lab Orders |
+| **Receptionist** | `receptionist` | `receptionist123` | Register Patients, Appointments, Tokens, Admissions, Billing |
+| **Admin** | `admin` | `admin123` | System Settings & Staff Management |
+| **Billing** | `billing` | `billing123` | Invoices, Cash/UPI Payments, Financial Reports |
+| **Lab** | `lab` | `lab123` | Blood/Urine Samples, Enter Test Results, Release Reports |
 
-### Test 1.3: Server Role-Guard Security Rejection
-- [ ] **Action:**
-  1. On the Doctor Login screen, enter **Receptionist** credentials:
+---
+
+## 🧪 Part 2: Step-by-Step Testing (Tap by Tap)
+
+---
+
+### 🟢 Test 1: Starting the App & Role Selection Screen
+
+1. **Look at the screen:**
+   - You should see the Swastik logo at the top.
+   - Below it, you see 6 role cards: **Doctor**, **Receptionist**, **Admin**, **Billing**, **Lab**, **Patient Portal**.
+   - **What to check:** None of the cards should be dark or selected automatically. All cards must look clean and white.
+
+2. **Security Test (Role Guard):**
+   - Tap the **Doctor** card. The card will animate and open the Doctor Login screen.
+   - Now deliberately type the wrong role credentials:
      - Username: `receptionist`
      - Password: `receptionist123`
-  2. Tap the teal **Sign In** button.
-- [ ] **Verification:**
-  - An alert dialog pops up with:
-    - Title: *"Access Denied"* or *"Role Mismatch"*
-    - Message: Explains that this account is for role `receptionist` and cannot enter the `doctor` workspace.
-  - You are **NOT** permitted to enter the doctor workstation.
+   - Tap the blue-green **Sign In** button.
+   - **What to check:** The app must **NOT** let you in. A popup box will appear saying *"Access Denied"* because a receptionist is not allowed into the doctor workstation. This proves security is working!
 
-### Test 1.4: Successful Authentication
-- [ ] **Action:**
-  1. Clear the fields.
-  2. Enter valid Receptionist credentials:
-     - Tap the **Back** arrow to return to Role Selection.
-     - Tap the **Receptionist** role card.
-     - Username: `receptionist`
-     - Password: `receptionist123`
-  3. Tap **Sign In**.
-- [ ] **Verification:**
-  - A brief spinner appears.
-  - You are taken directly to the **Receptionist Dashboard**.
+3. **Return to Home:**
+   - Tap the **Back Arrow** at the top left to go back to the 6 cards.
 
 ---
 
-## Step 2: Receptionist Dashboard & Live Counts
+### 🟢 Test 2: Receptionist Dashboard & Live Counts
 
-### Test 2.1: Zero-Baseline Verification (No Fake Numbers)
-- [ ] **Action:** Observe the metric counter cards at the top of the Receptionist Dashboard.
-- [ ] **Verification:**
-  - Counter 1: **Today's Appointments**
-  - Counter 2: **Inpatient Admissions**
-  - Counter 3: **Available Beds**
-  - **CRITICAL:** No hardcoded numbers appear (e.g. previously fabricated `42`, `128`, `94.2%` are removed).
-  - Data starts at 0 and loads from `GET /api/dashboard/counts` and `GET /api/admissions`.
+1. **Log in as Receptionist:**
+   - Tap the **Receptionist** card.
+   - Type Username: `receptionist`
+   - Type Password: `receptionist123`
+   - Tap **Sign In**.
+   - **What to check:** You enter the Receptionist Dashboard smoothly.
 
-### Test 2.2: Pull-to-Refresh
-- [ ] **Action:** Drag down the scroll view from the top and release.
-- [ ] **Verification:**
-  - A teal circular loading indicator spins.
-  - The live data re-fetches cleanly from the server without flickering or crashing.
+2. **Check the numbers:**
+   - Look at the 3 big number boxes at the top:
+     - Today's Appointments
+     - Inpatient Admissions
+     - Available Beds
+   - **What to check:** The old fake mock numbers (like `42` or `128`) are completely gone! The numbers start from zero and only show real data from the hospital server.
 
----
-
-## Step 3: Continuous Patient Registration Workflow
-
-### Test 3.1: Open Registration Form
-- [ ] **Action:** Tap the floating action button or card **"Register New Patient"** (or open drawer $\rightarrow$ Patient Registration).
-- [ ] **Verification:** The Patient Registration form opens.
-
-### Test 3.2: Fill Patient Details
-- [ ] **Action:** Enter the following test details:
-  - **Full Name:** `Anil Kumar Patil`
-  - **Age:** `42`
-  - **Gender:** Tap `Male`
-  - **Mobile Phone:** `9876501234`
-  - **Address:** `Tarabai Park, Kolhapur`
-  - **Emergency Contact:** `9876501235 (Brother)`
-  - **Chief Complaints:** `Persistent insomnia, mild anxiety for 2 weeks`
-  - **Department:** `Psychiatry OPD`
-- [ ] **Verification:** Form inputs show entered text clearly.
-
-### Test 3.3: Submit & Verify End-to-End Workflow
-- [ ] **Action:** Tap the large teal button: **"Register Patient & Generate Token"**.
-- [ ] **Verification:**
-  - The app submits `POST /api/patients`.
-  - A server-issued UHID is returned (e.g., `SWH-2026-XXXX`). **No fake local UHID**.
-  - The workflow automatically proceeds through:
-    1. Appointment creation on backend
-    2. Queue token generation on backend
-    3. OPD register entry creation
-    4. Initial bill fetch
-  - The **Case Paper & Token Receipt Modal** pops up displaying:
-    - Hospital Header: *Swastik Hospital & Research Centre*
-    - Patient Name: `Anil Kumar Patil`
-    - Assigned UHID
-    - Today's Queue Token Number (e.g., `T-01` or `A-05`)
-    - Referring Doctor: *Dr. P. M. Chougule*
-  - Tap **Print Case Paper / Share Receipt** $\rightarrow$ Android Print preview dialog opens.
-  - Close the receipt modal.
+3. **Test Pull-to-Refresh:**
+   - Put your finger at the top of the screen, pull down, and let go.
+   - **What to check:** A small spinning circle appears and disappears cleanly. Nothing freezes or crashes.
 
 ---
 
-## Step 4: Patient Directory, Search & Server Pagination
+### 🟢 Test 3: Register a Brand New Patient
 
-### Test 4.1: View Directory
-- [ ] **Action:** Open the drawer $\rightarrow$ Tap **Patient Directory** (or Patient List).
-- [ ] **Verification:** A list of registered patients loads from `GET /api/patients`.
+1. **Open registration:**
+   - Tap the button that says **"Register New Patient"** (or tap the 3 lines menu icon at the top left $\rightarrow$ tap Patient Registration).
 
-### Test 4.2: Direct UHID Search
-- [ ] **Action:**
-  1. In the search input, type the UHID generated in Step 3 (or part of the name `Anil`).
-  2. Tap the search icon or keyboard Enter.
-- [ ] **Verification:**
-  - The list filters immediately to show `Anil Kumar Patil`.
-  - The card displays Name, UHID, Phone, and Age/Gender.
+2. **Fill in patient details:**
+   - Tap **Full Name** $\rightarrow$ type: `Ramesh Kumar Patil`
+   - Tap **Age** $\rightarrow$ type: `38`
+   - Tap **Gender** $\rightarrow$ tap **Male**
+   - Tap **Phone** $\rightarrow$ type: `9876543210`
+   - Tap **Address** $\rightarrow$ type: `Shahupuri, Kolhapur`
+   - Tap **Department** $\rightarrow$ select `Psychiatry OPD`
 
-### Test 4.3: Server-Side Pagination
-- [ ] **Action:**
-  1. Clear the search input.
-  2. Scroll to the bottom of the list.
-- [ ] **Verification:**
-  - You see pagination controls: `Page 1 of X`, with **Previous** and **Next** buttons.
-  - Tap **Next** $\rightarrow$ Fetches the next page using `skip=10&limit=10`.
-  - Tap **Previous** $\rightarrow$ Returns to page 1.
-
-### Test 4.4: Bulk CSV Import Dialog
-- [ ] **Action:** Tap the **"Bulk Import CSV"** button at the top right.
-- [ ] **Verification:**
-  - A modal opens explaining CSV column requirements (`name, age, gender, phone, address`).
-  - Buttons: **Select CSV File** and **Cancel**.
-  - Tap **Cancel** to close cleanly.
+3. **Complete registration:**
+   - Tap the big button at the bottom: **"Register Patient & Generate Token"**.
+   - **What to check:**
+     - The app contacts the real server.
+     - A popup box named **"Case Paper & Token Receipt"** appears on your screen!
+     - It shows a real official hospital UHID number (like `SWH-2026-0001`).
+     - It shows today's token number (like `T-01` or `A-01`).
+     - It shows doctor name: *Dr. P. M. Chougule*.
+   - Tap **Close** to close the receipt popup.
 
 ---
 
-## Step 5: Appointments, Reason Cancellation & Queue Tokens
+### 🟢 Test 4: Patient Directory & Search
 
-### Test 5.1: View Appointments & Filter
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Appointments**.
-- [ ] **Verification:**
-  - Two or three tabs are visible: **List View**, **Calendar View**, and **Queue Tokens**.
-  - Appointments load with date, time, patient name, doctor, and status badge (`Scheduled`, `Completed`, `Cancelled`).
+1. **Open Patient Directory:**
+   - Tap the menu icon (3 lines) at the top left $\rightarrow$ tap **Patient Directory** (or Patient List).
+   - You will see the list of registered patients.
 
-### Test 5.2: Cancel Appointment with Reason
-- [ ] **Action:**
-  1. Locate a scheduled appointment.
-  2. Tap the **Cancel** button on that card.
-- [ ] **Verification:**
-  - A modal titled *"Cancel Appointment"* opens.
-  - A text input asks for: *"Reason for cancellation"*.
-  - Enter: `Patient requested cancellation due to travel`.
-  - Tap **Confirm Cancellation**.
-  - App sends `PUT /api/appointments/cancel/{id}?reason=Patient requested cancellation due to travel`.
-  - The card updates to `Cancelled` with the reason noted.
+2. **Test Search:**
+   - Tap the search bar at the top.
+   - Type `Ramesh` (or the patient name you just registered).
+   - **What to check:** The list instantly filters and shows only `Ramesh Kumar Patil`.
 
-### Test 5.3: Block Doctor Slot Modal
-- [ ] **Action:** Tap the **"Block Slot"** button.
-- [ ] **Verification:**
-  - Modal opens requesting: Doctor, Date, Time Slot, and Reason (e.g. `Emergency Operation / CME`).
-  - Tap **Cancel** to close.
-
-### Test 5.4: Live Queue Tokens Tab
-- [ ] **Action:** Tap the **Queue Tokens** tab.
-- [ ] **Verification:**
-  - Today's tokens load via `GET /api/tokens/today`.
-  - Doctor filter dropdown is at the top.
-  - Each token card shows Token Number, Patient Name, Time, and Status (`ISSUED`, `IN_CONSULTATION`, or `COMPLETED`).
-- [ ] **Action:** On any token with status `ISSUED`, tap **"Call In"**.
-- [ ] **Verification:**
-  - Status immediately updates to `IN_CONSULTATION`.
-- [ ] **Action:** Tap **"Complete"**.
-- [ ] **Verification:**
-  - Status updates to `COMPLETED`.
+3. **Test Pages (Pagination):**
+   - Clear the search box.
+   - Scroll all the way down to the bottom.
+   - **What to check:** You will see **"Page 1 of X"** with **Next** and **Previous** buttons. Tap **Next** to load the next batch of patients.
 
 ---
 
-## Step 6: Inpatient Admission, Consent Upload & Discharge
+### 🟢 Test 5: Queue Tokens & Doctor Call-In
 
-### Test 6.1: New Inpatient Admission
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Admissions** $\rightarrow$ Tap **"New IPD Admission"**.
-- [ ] **Verification:**
-  - Admission modal opens with required fields:
-    - **Patient UHID:** Enter the UHID from Step 3.
-    - **Admitting Doctor:** Select `Dr. P. M. Chougule`.
-    - **Room / Bed:** Select an available room (e.g., `Room 101 - Bed A`).
-    - **Provisional Diagnosis:** Enter `Severe Depressive Episode with Psychotic Symptoms`.
-    - **Admission Reason:** Enter `Observation & Stabilization`.
-    - **Initial Deposit (₹):** Enter `5000`.
-- [ ] **Action:** Tap **"Confirm Admission"**.
-- [ ] **Verification:**
-  - App sends `POST /api/admissions` with strict `AdmissionCreate` payload.
-  - Admission is registered on the server.
-  - Card appears under active inpatients.
+1. **Open Queue Tokens:**
+   - Tap the menu icon $\rightarrow$ tap **Appointments**.
+   - Tap the tab called **"Queue Tokens"** at the top.
+   - **What to check:** You will see today's patient tokens.
 
-### Test 6.2: Consent Document Retrieval & Upload
-- [ ] **Action:**
-  1. On the newly admitted patient card, tap **"Consent Form"**.
-- [ ] **Verification:**
-  - Modal opens calling `GET /api/admissions/{uhid}/consent`.
-  - Displays consent status, date, and upload button: **"Upload Signed Consent Document"**.
-  - Tap **Upload Signed Consent Document** $\rightarrow$ Image/file picker prompt opens.
-  - Cancel or select file $\rightarrow$ Closes gracefully.
+2. **Test "Call In" and "Complete":**
+   - Find a token that says `ISSUED` or `WAITING`.
+   - Tap the button **"Call In"**.
+   - **What to check:** The status tag instantly changes color and says **"IN CONSULTATION"**.
+   - Now tap **"Complete"**.
+   - **What to check:** The status tag turns green and says **"COMPLETED"**.
 
-### Test 6.3: Patient Discharge
-- [ ] **Action:**
-  1. On the patient card, tap **"Discharge Patient"**.
-  2. In the confirmation dialog, enter Discharge Condition: `Clinically stable, remission of acute symptoms`.
-  3. Tap **Confirm Discharge**.
-- [ ] **Verification:**
-  - App sends `POST /api/discharges` with `DischargeCreate` schema.
-  - Patient moves out of active inpatients.
-  - Allocated room status changes back to `Available`.
+3. **Test Appointment Cancellation with Reason:**
+   - Tap the **"List View"** tab to see appointments.
+   - Find any appointment card and tap **Cancel**.
+   - A box opens asking: *"Reason for cancellation"*.
+   - Type: `Patient rescheduled by phone call`.
+   - Tap **Confirm Cancellation**.
+   - **What to check:** The appointment card updates to `Cancelled` with your reason recorded.
 
 ---
 
-## Step 7: Room Allocation & Status Toggle
+### 🟢 Test 6: Inpatient Admission (IPD)
 
-### Test 7.1: View Room Grid
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Room Management**.
-- [ ] **Verification:**
-  - Room cards load showing Room Number, Room Type (`General`, `Semi-Private`, `ICU`, `Deluxe`), Total Beds, and Status (`Available`, `Occupied`, `Maintenance`).
+1. **Open Admissions:**
+   - Tap the menu icon $\rightarrow$ tap **Admissions**.
+   - Tap **"New IPD Admission"**.
 
-### Test 7.2: Create New Room
-- [ ] **Action:**
-  1. Tap **"Add Room"**.
-  2. Enter Room Number: `205`, Type: `Semi-Private`, Beds: `2`, Daily Rate: `1500`.
-  3. Tap **Save Room**.
-- [ ] **Verification:**
-  - Sends `POST /api/rooms`.
-  - Room 205 appears in the list.
+2. **Fill in details:**
+   - **Patient UHID:** Type the UHID of the patient you registered.
+   - **Doctor:** Select `Dr. P. M. Chougule`.
+   - **Room / Bed:** Select any available room (like `Room 101`).
+   - **Diagnosis:** Type `Severe Depression with Sleep Disturbance`.
+   - **Deposit:** Type `5000`.
+   - Tap **Confirm Admission**.
 
-### Test 7.3: Toggle Room Maintenance Status
-- [ ] **Action:** Tap the status badge on Room 205 $\rightarrow$ Select `Maintenance`.
-- [ ] **Verification:**
-  - Status updates in the backend via `PATCH /api/rooms/{id}/status`.
-  - Badge color changes to amber/orange.
+3. **What to check:**
+   - The patient is admitted into the hospital ward.
+   - The selected room status automatically changes from *Available* to *Occupied*.
 
 ---
 
-## Step 8: Receptionist Billing & Staff Attribution
+### 🟢 Test 7: Doctor Workstation (OPD Clinic vs. Ward Rounds)
 
-### Test 8.1: Bills List (No Fake Invoices)
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Billing**.
-- [ ] **Verification:**
-  - Real invoices load via `GET /api/billing/bills`.
-  - **No fake fallback numbers** (`INV-001`, `SWH-2026-0001` are gone).
-  - Empty state displays cleanly if no bills exist: *"No invoices recorded"*.
+Now let's switch to the Doctor role!
+1. **Logout:** Tap menu icon $\rightarrow$ tap **Logout**.
+2. **Login as Doctor:**
+   - Tap **Doctor** card.
+   - Type Username: `doctor`
+   - Type Password: `doctor123`
+   - Tap **Sign In**.
 
-### Test 8.2: Record Payment with Staff Attribution
-- [ ] **Action:**
-  1. On any pending bill card, tap **"Collect Payment"**.
-  2. Select Method: `Cash` or `UPI`.
-  3. Enter Amount: `1500`.
-  4. Tap **Confirm Payment**.
-- [ ] **Verification:**
-  - App sends `POST /api/bills/{id}/payments` containing `created_by: "receptionist"` staff attribution.
-  - Balance updates dynamically.
-  - Receipt dialog opens.
-
----
-
-## Step 9: Doctor Workstation (OPD vs. IPD Ward Rounds)
-
-Switch user to Doctor:
-- Open drawer $\rightarrow$ Tap **Logout**.
-- On Role Selection $\rightarrow$ Tap **Doctor** $\rightarrow$ Enter `doctor` / `doctor123` $\rightarrow$ Tap **Sign In**.
-
-### Test 9.1: Workstation OPD Tab
-- [ ] **Action:** Observe the Doctor Workstation screen.
-- [ ] **Verification:**
-  - Screen has an **OPD Clinic** tab and a **Ward Rounds (IPD)** tab.
-  - On the **OPD Clinic** tab:
-    - Section 1: **Queue Tokens Today** shows live tokens from `/api/tokens/today`.
-    - Section 2: **Active Consultation Sessions** shows currently active sessions from `/api/session/active`.
-    - Section 3: **Scheduled Patient Consultations** shows appointment list.
-
-### Test 9.2: Workstation Ward Rounds Tab
-- [ ] **Action:** Tap the **Ward Rounds (IPD)** toggle.
-- [ ] **Verification:**
-  - Census summary shows: Total Inpatients, Bed Occupancy, Critical Observations.
-  - Cards show each admitted inpatient with their room number, bed, diagnosis, and admission duration.
-  - Each card has an **"Inpatient EMR"** button.
+3. **Test the OPD vs. Ward Rounds Toggle:**
+   - At the top of the Doctor Workstation screen, look at the two tabs:
+     - **OPD Clinic**
+     - **Ward Rounds (IPD)**
+   - Tap **Ward Rounds (IPD)**:
+     - **What to check:** You see a list of admitted ward patients, their room numbers, bed badges, and an **"Inpatient EMR"** button on each card.
+   - Tap **OPD Clinic**:
+     - **What to check:** You see today's OPD Queue Tokens and active sessions.
 
 ---
 
-## Step 10: Ward Round Board (Mode A Widgets)
+### 🟢 Test 8: Opening the EMR (Electronic Medical Record)
 
-### Test 10.1: Launch EMR with Admission Context
-- [ ] **Action:**
-  1. Return to the **OPD Clinic** tab (or stay on Ward Rounds).
-  2. On any patient card, tap **"Open EMR"**.
-- [ ] **Verification:**
-  - In the background, `emrService.resolveActiveAdmission` runs.
-  - An active `admission_id` is assigned and bound.
-  - The Psychiatric Clinical Workstation opens.
-  - The sticky header displays:
-    - Patient Name & UHID
-    - Age / Gender
-    - Green admission pill badge: `ADM-...`
-    - Session Lock icon button
-    - Print / Export PDF button
-    - View Mode Switcher: **[Round Board]** vs **[Comprehensive EMR]**
+1. **Open EMR:**
+   - On any patient card, tap the button that says **"Open EMR"**.
 
-### Test 10.2: Round Board Widgets
-- [ ] **Action:** Ensure view mode is set to **Round Board**.
-- [ ] **Verification:**
-  - **Widget 1: Vitals Pulse:** Shows latest BP, Pulse, SpO2, Temp with normal/abnormal indicator.
-  - **Widget 2: Clinical Impression:** Shows 3-Axis Risk progress bars (Suicide, Violence, Self-neglect).
-  - **Widget 3: Latest SOAP Summary:** Displays latest clinical notes.
-  - **Widget 4: Active Regimen & Orders:** Lists current prescriptions with dosage and **Stop** buttons.
-  - **Widget 5: Rounding Log:** Shows recent rounding entries.
-
-### Test 10.3: Quick Action Modals
-- [ ] **Action:**
-  1. Tap the quick action button **"+ Add Round Note"**.
-  2. Type: `Patient engaged well in morning round. Mood brighter. Denies suicidal thoughts.`
-  3. Tap **Save Note**.
-- [ ] **Verification:**
-  - Note saves to backend with `admission_id`.
-  - Added to the Rounding Log in real-time.
-- [ ] **Action:**
-  1. Tap **"+ Record Vitals"**.
-  2. Enter: BP `118/78`, Pulse `74`, Temp `98.2`, SpO2 `99`.
-  3. Tap **Save Vitals**.
-- [ ] **Verification:**
-  - Vitals save to `POST /api/emr/vitals/{uhid}`.
-  - Vitals Pulse widget updates immediately.
+2. **What to check on the screen:**
+   - A green badge appears in the top header showing the active admission ID (`ADM-...`).
+   - The patient's Name, UHID, and Age/Gender are clearly visible in the top header.
+   - You have two view modes: **[Round Board]** and **[Comprehensive EMR]**.
 
 ---
 
-## Step 11: Comprehensive EMR Workspace (Mode B — 12 Tabs)
+### 🟢 Test 9: Ward Round Board (Mode A)
 
-- [ ] **Action:** On the top header switcher, tap **"Comprehensive EMR"**.
-- [ ] **Verification:** A horizontal tab bar appears with 12 distinct clinical tabs:
-  1. Symptoms & HPI
-  2. MSE
-  3. Diagnosis
-  4. Risk Assessment
-  5. Medications Rx
-  6. Treatment Plan
-  7. SOAP Notes
-  8. Vitals Log
-  9. Timeline
-  10. Lab & Monitoring
-  11. Audit Trail
-  12. Rehab & Routine
+1. **Check Round Board widgets:**
+   - Ensure you are on the **Round Board** mode.
+   - You will see 5 helpful cards:
+     - **Vitals Pulse:** Shows latest Blood Pressure and Pulse.
+     - **Clinical Impression:** Shows Risk progress bars.
+     - **Latest SOAP Summary:** Clinical session notes.
+     - **Active Regimen:** Current medications.
+     - **Rounding Log:** Daily round history.
 
-### Tab 1: Symptoms & HPI
-- [ ] **Action:**
-  1. Tap **Symptoms & HPI**.
-  2. In Chief Complaints, type: `Low mood, fatigue, early morning awakening`.
-  3. In HPI narrative, type: `Symptoms started 3 months ago following occupational stress. No prior manic episodes.`
-  4. Tap **Save Symptoms & HPI**.
-- [ ] **Verification:**
-  - App sends `POST /api/emr/symptoms-hpi/{uhid}` with active `admission_id`.
-  - Success alert confirms live server persistence.
-
-### Tab 2: Mental Status Examination (MSE)
-- [ ] **Action:**
-  1. Tap **MSE**.
-  2. Observe the 12 psychiatric categories (Appearance, Behavior, Speech, Mood, Affect, Thought Process, Thought Content, Perception, Cognition, Insight, Judgment).
-  3. Under Thought Content, check `Suicidal Ideation` or type `Auditory command hallucinations`.
-- [ ] **Verification:**
-  - **High-Risk Red Banner** automatically appears at the top alerting: *"Critical Psychiatric Red Flag Detected: Suicidal Ideation / Command Hallucinations"*.
-- [ ] **Action:** Tap **Save MSE Findings**.
-- [ ] **Verification:** Saves to `POST /api/emr/mse/{uhid}`.
-
-### Tab 3: Diagnosis (ICD-11 & DSM-5)
-- [ ] **Action:**
-  1. Tap **Diagnosis**.
-  2. In the diagnosis search input, type: `Depression`.
-  3. Tap on code `6A70 - Single episode depressive disorder`.
-  4. Select Type: `Provisional Diagnosis`.
-  5. Tap **Save Diagnosis**.
-- [ ] **Verification:** Saves to `POST /api/emr/diagnosis/{uhid}`.
-
-### Tab 4: 3-Axis Risk Assessment
-- [ ] **Action:**
-  1. Tap **Risk Assessment**.
-  2. Adjust the 3 axes:
-     - Suicide Risk: Select `Moderate`
-     - Violence Risk: Select `Low`
-     - Vulnerability / Self-neglect: Select `Low`
-  3. Enter Safety Plan: `Family supervision 24/7; sharp objects removed from room.`
-  4. Tap **Save Risk Assessment**.
-- [ ] **Verification:** Saves to `POST /api/emr/risk/{uhid}`.
-
-### Tab 5: Medications Rx & Medication Stop Action
-- [ ] **Action:**
-  1. Tap **Medications Rx**.
-  2. In Drug Search, type: `Lithium`.
-  3. Select `Lithium Carbonate 300mg`.
-  4. Select Frequency: `1-0-1 (Twice Daily)`.
-  5. Select Duration: `30 days`.
-  6. Instructions: `Take with meals. Maintain adequate hydration.`
-  7. Tap **Prescribe Medication**.
-- [ ] **Verification:**
-  - Medication appears in Active Medications table.
-- [ ] **Action (Medication Stop Action):**
-  1. On any active medication, tap the red **Stop** button.
-  2. Stop reason modal asks for clinical rationale: type `Nausea and tremors reported`.
-  3. Tap **Confirm Stop**.
-- [ ] **Verification:**
-  - Medication status updates to `Stopped` with a gray badge.
-  - Reason `Nausea and tremors reported` is recorded.
-
-### Tab 6: Treatment Plan
-- [ ] **Action:**
-  1. Tap **Treatment Plan**.
-  2. Select Observation Level: `15-minute observation checks`.
-  3. Nursing Orders: `Monitor hydration and dietary intake; record vital signs Q8H.`
-  4. Tap **Save Treatment Plan**.
-- [ ] **Verification:** Saves to `POST /api/emr/treatment-plan/{uhid}`.
-
-### Tab 7: SOAP Notes & 24h Sign & Lock
-- [ ] **Action:**
-  1. Tap **SOAP Notes**.
-  2. Enter:
-     - **S (Subjective):** `Patient reports feeling calmer today.`
-     - **O (Objective):** `Euthymic affect, coherent speech, no agitation.`
-     - **A (Assessment):** `Single episode depressive disorder showing steady response to regimen.`
-     - **P (Plan):** `Continue current dosage. Review serum lithium levels in 5 days.`
-  3. Tap **"Sign & Lock Note (24h)"**.
-- [ ] **Verification:**
-  - App sends signed payload.
-  - The note displays a gold/teal **Locked & Signed** badge with timestamp and Dr. P. M. Chougule.
-  - Inputs become read-only to protect legal clinical documentation.
-
-### Tab 8: Vitals History Log
-- [ ] **Action:**
-  1. Tap **Vitals Log**.
-- [ ] **Verification:**
-  - Historical table lists all vitals recorded today and in previous sessions with timestamp, BP, Pulse, SpO2, and recording staff name.
-
-### Tab 9: Clinical Timeline
-- [ ] **Action:** Tap **Timeline**.
-- [ ] **Verification:** Chronological timeline displays consultations, notes, vitals changes, and admissions.
-
-### Tab 10: Lab & Monitoring (Lithium Therapeutic Alert)
-- [ ] **Action:** Tap **Lab & Monitoring**.
-- [ ] **Verification:**
-  - The Therapeutic Lithium Monitoring section displays the reference therapeutic range: **`0.60 – 1.20 mEq/L`**.
-  - Visual gauge highlights toxic thresholds ($>1.5\text{ mEq/L}$).
-
-### Tab 11: EMR Audit Trail
-- [ ] **Action:** Tap **Audit Trail**.
-- [ ] **Verification:**
-  - Shows an immutable audit log from `GET /api/emr/audit`.
-  - Every update made in previous tabs (Symptoms, MSE, Risk, Meds) appears with entity name, actor (`doctor`), and timestamp.
-
-### Tab 12: Rehab & Daily Routine
-- [ ] **Action:** Tap **Rehab & Routine**.
-- [ ] **Verification:**
-  - Checklist for Daily Activities (Morning Hygiene, Breakfast, Group Therapy, Exercise, Sleep).
-  - Tap **Save Routine** $\rightarrow$ Saves to `/api/clinical/daily-routine/{uhid}`.
+2. **Try the Quick Action buttons:**
+   - Tap **"+ Add Round Note"** $\rightarrow$ type: `Patient is alert, slept 7 hours, mood is better.` $\rightarrow$ tap **Save Note**.
+   - **What to check:** The note appears in the Rounding Log immediately.
+   - Tap **"+ Record Vitals"** $\rightarrow$ enter BP `120/80`, Pulse `72` $\rightarrow$ tap **Save Vitals**.
+   - **What to check:** The Vitals card updates right away.
 
 ---
 
-## Step 12: Order Lab Investigation from EMR
+### 🟢 Test 10: Comprehensive 12-Tab EMR Workspace (Mode B)
 
-### Test 12.1: Open Lab Order Modal
-- [ ] **Action:**
-  1. On the EMR header or inside Tab 10 (Lab & Monitoring), tap the button **"Order Lab Investigation"**.
-- [ ] **Verification:**
-  - Lab Order modal opens with tests catalog.
+Tap **"Comprehensive EMR"** at the top right. You will see a scrollable bar with 12 tabs. Let's test the most important ones:
 
-### Test 12.2: Select Tests & Submit
-- [ ] **Action:**
-  1. Check: `Serum Lithium Level`.
-  2. Check: `Thyroid Stimulating Hormone (TSH)`.
-  3. Check: `Complete Blood Count (CBC)`.
-  4. Enter Clinical Indication: `Pre-treatment psychiatric baseline monitoring`.
-  5. Tap **Submit Lab Order**.
-- [ ] **Verification:**
-  - App sends `POST /api/lab/test-requests` with patient UHID, doctor ID, tests array, and active `admission_id`.
-  - Success message confirms: *"Lab request created successfully"*.
+#### Tab 1: Symptoms & HPI
+- Tap **Symptoms & HPI**.
+- In Chief Complaints, type: `Sadness, lack of energy, headache`.
+- In HPI Narrative, type: `Patient has felt this way for 4 weeks.`
+- Tap **Save Symptoms & HPI**.
+- **What to check:** A success alert appears confirming it is saved on the server.
 
----
+#### Tab 2: Mental Status Examination (MSE) & Red-Flag Detection
+- Tap **MSE**.
+- Scroll down to **Thought Content** and check the box for **Suicidal Ideation** (or type `Suicidal thoughts present`).
+- **What to check:** A bright red alert banner pops up at the top warning: *"Critical Psychiatric Red Flag Detected: Suicidal Ideation"*.
+- Tap **Save MSE Findings**.
 
-## Step 13: Clinical PDF Dossier Generation
+#### Tab 3: Diagnosis (ICD-11 & DSM-5)
+- Tap **Diagnosis**.
+- Type `Depress` in the search box.
+- Tap on `6A70 - Single episode depressive disorder`.
+- Tap **Save Diagnosis**.
 
-### Test 13.1: Export Official Dossier
-- [ ] **Action:** On the top sticky header of the EMR, tap the **Printer / PDF Export** icon.
-- [ ] **Verification:**
-  - A loading indicator says: *"Generating official clinical dossier..."*.
-  - Android Print/Share sheet opens with a complete formatted document:
-    - Hospital letterhead
-    - Patient metadata & admission ID
-    - Symptoms & HPI narrative
-    - 12-category MSE summary
-    - ICD-11 Diagnosis
-    - 3-Axis Risk Assessment
-    - Active medications list
-    - Treating Psychiatrist signature block
-  - Tap **Cancel** or **Save as PDF**.
+#### Tab 4: 3-Axis Risk Assessment
+- Tap **Risk Assessment**.
+- You will see 3 sliders/selectors: Suicide Risk, Violence Risk, Self-Neglect.
+- Set Suicide Risk to `Moderate`.
+- Tap **Save Risk Assessment**.
 
----
+#### Tab 5: Medications Rx & Stop Medication Action
+- Tap **Medications Rx**.
+- In the drug search box, type `Lithium`.
+- Select `Lithium Carbonate 300mg`.
+- Frequency: select `1-0-1`.
+- Tap **Prescribe Medication**.
+- **What to check:** The medicine appears in the Active Prescriptions table below.
+- **Test Stopping a Medicine:**
+  - On any active medicine row, tap the red **Stop** button.
+  - A box asks for reason: type `Patient had mild nausea`.
+  - Tap **Confirm Stop**.
+  - **What to check:** The medicine status changes to a gray badge saying `Stopped`.
 
-## Step 14: Diagnostic Lab Orders & Real Report Viewer
+#### Tab 7: SOAP Notes & 24h Sign & Lock
+- Tap **SOAP Notes**.
+- Type in Subjective: `Patient feels calmer today.`
+- Type in Objective: `Normal speech, attentive.`
+- Type in Assessment: `Improving on current treatment.`
+- Type in Plan: `Continue medicine for 2 weeks.`
+- Tap **"Sign & Lock Note (24h)"**.
+- **What to check:** A gold badge appears saying **"Locked & Signed"** with today's date and doctor name. The note can no longer be accidentally edited.
 
-### Test 14.1: Live Lab Orders Screen
-- [ ] **Action:**
-  1. Tap the drawer icon $\rightarrow$ Tap **Lab Orders & Reports**.
-- [ ] **Verification:**
-  - **CRITICAL:** The 10 fake mock orders (`LAB-DMY-20260309-001` through `010`) are **completely gone**.
-  - Orders list loads from `GET /api/lab/test-requests`.
-  - If you ordered tests in Step 12, your order appears at the top with status `Requested`.
-  - Status filter dropdown at top works smoothly (`All statuses`, `Requested`, `Sample collected`, `Report ready`, etc.).
-
-### Test 14.2: Lab Report Modal Viewer
-- [ ] **Action:**
-  1. On any order with status `Report ready` (or your test order), tap **"View / Download report"**.
-- [ ] **Verification:**
-  - App queries `GET /api/lab/test-requests/{id}/report`.
-  - Modal opens:
-    - **CRITICAL:** The 5 static hardcoded test rows are **gone**.
-    - If results have been entered: Displays observed values, units, biological reference intervals, and status tags (`Normal`, `Abnormal`, `Critical`).
-    - If results are pending: Cleanly states *"Laboratory test results have not been finalized or entered yet. Current Order Status: Requested"*.
-  - Tap **Download / Share PDF Report** $\rightarrow$ Android Print viewer opens with an official clinical pathology laboratory report.
+#### Tab 10: Lab Monitoring & Lithium Therapeutic Gauge
+- Tap **Lab & Monitoring**.
+- Look at the **Therapeutic Lithium Monitoring** section.
+- **What to check:** A clear reference gauge shows the safe target zone: **`0.60 – 1.20 mEq/L`**.
 
 ---
 
-## Step 15: Prescriptions Search & Rx Script Printing
+### 🟢 Test 11: Order Lab Tests Directly from EMR
 
-### Test 15.1: Prescriptions Screen & Search Bar
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Prescriptions**.
-- [ ] **Verification:**
-  - Top search bar is present: *"Search by UHID, patient name, or medication..."*.
-  - Prescriptions list renders cards with Patient Name, UHID, Date, and Medicine list.
-
-### Test 15.2: Live Search
-- [ ] **Action:** Type `Lithium` (or the patient name `Anil`) into the search bar.
-- [ ] **Verification:**
-  - App calls `GET /api/clinical/prescription?search=Lithium`.
-  - List filters in real-time to matching records.
-  - Clear the search by tapping the `X` icon $\rightarrow$ All prescriptions restore.
-
-### Test 15.3: Print Official Signed Rx Script
-- [ ] **Action:** On any prescription card, tap **"Print Official Rx Script"**.
-- [ ] **Verification:**
-  - Android Print viewer opens formatted as a medical prescription:
-    - Swastik Hospital Header
-    - Rx symbol ($\mathtt{R_x}$)
-    - Patient Name & UHID
-    - Medicine Formulation, Dosage (`1-0-1`), Timing (`After food`), and Duration
-    - Doctor's Signature Block (Dr. P. M. Chougule, MD Psychiatry, Reg No: MMC-2012-78923).
+1. Inside the EMR, tap the button called **"Order Lab Investigation"**.
+2. A tests catalog opens.
+3. Check the boxes for:
+   - `Serum Lithium Level`
+   - `Complete Blood Count (CBC)`
+4. Type in Clinical Notes: `Routine psychiatric monitoring`.
+5. Tap **Submit Lab Order**.
+6. **What to check:** A green confirmation alert appears saying *"Lab request created successfully"*.
 
 ---
 
-## Step 16: Medical Reports & Hospital MIS Analytics
+### 🟢 Test 12: Print Full Medical PDF Report
 
-### Test 16.1: Tab Switcher
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Medical Reports**.
-- [ ] **Verification:**
-  - You see two toggle tabs at the top:
-    - **[Patient Clinical Reports]**
-    - **[Hospital MIS Reports]**
-
-### Test 16.2: Patient Discharge Summary & Full EMR Dossier
-- [ ] **Action:**
-  1. In the **Patient Clinical Reports** tab, search for `Anil` or your test patient.
-  2. Tap **"Discharge Summary"**.
-- [ ] **Verification:**
-  - Pulls real patient EMR diagnosis, medications, and vitals.
-  - Opens printable official Discharge Summary PDF.
-- [ ] **Action:**
-  3. Tap **"Clinical EMR Dossier"**.
-- [ ] **Verification:**
-  - Generates comprehensive confidential medical dossier PDF with full MSE and Risk evaluation.
-
-### Test 16.3: Hospital MIS Operational Reports
-- [ ] **Action:**
-  1. Tap the **Hospital MIS Reports** tab.
-  2. You see 4 operational reports:
-     - **Daily Hospital Operations** (`daily-hospital`)
-     - **Doctor Clinical Performance** (`doctor-performance`)
-     - **Medication Monitoring Trends** (`medication-monitoring`)
-     - **Patient Demographics & Statistics** (`patient-statistics`)
-  3. On **Daily Hospital Operations**, tap **"Generate & Download Report"**.
-- [ ] **Verification:**
-  - App queries `/api/reports/download?report_type=daily-hospital`.
-  - Formats real-time metrics table (OPD registrations, active IPD, appointments, total revenue).
-  - Opens Android PDF share/print viewer.
-- [ ] **Action:** Tap **"Generate & Download Report"** on **Medication Monitoring Trends**.
-- [ ] **Verification:**
-  - Fetches real-time psychiatric medication surveillance tables.
+1. Look at the very top of the EMR screen header.
+2. Tap the **Printer / PDF icon**.
+3. **What to check:**
+   - A brief loading message says *"Generating official clinical dossier..."*.
+   - Your Android phone's print/share screen opens!
+   - You can see a clean, official medical report with the Swastik Hospital logo, patient info, diagnosis, MSE findings, active medicines, and doctor signature.
+   - Tap **Cancel** or **Save as PDF**.
 
 ---
 
-## Step 17: Doctor Profile, Password & Custom Checklist Questions
+### 🟢 Test 13: Lab Orders & Real Report Viewer
 
-### Test 17.1: View Settings
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Settings & Profile**.
-- [ ] **Verification:** Screen displays 3 distinct cards:
-  - **Card 1: Profile Information**
-  - **Card 2: Security Settings**
-  - **Card 3: Consultation Checklist Questions**
+1. Tap the menu icon (3 lines) $\rightarrow$ tap **Lab Orders & Reports**.
+2. **What to check:**
+   - **CRITICAL:** The 10 fake demo orders (which were named `LAB-DMY-20260309-...`) are **completely gone**!
+   - You only see real orders. The order you created in Test 11 will be listed right at the top.
+3. **Open Report Viewer:**
+   - On any completed order, tap **"View / Download report"**.
+   - **What to check:**
+     - The 5 old fake test rows are gone.
+     - Real test parameters appear with observed values, units, reference intervals, and status badges (Normal, Abnormal, Critical).
+     - Tap **Download / Share PDF Report** to view the official PDF.
 
-### Test 17.2: Update Profile Information
-- [ ] **Action:**
-  1. In Card 1, update Phone Number to: `+91 98765 99999`.
-  2. Tap **Update Profile**.
-- [ ] **Verification:**
-  - Sends `PUT /api/doctor/profile`.
-  - Success alert: *"Doctor profile has been updated and synchronized with the clinical server."*
-  - Auth store updates immediately.
+---
 
-### Test 17.3: Password Change Truthful Error Handling
-- [ ] **Action:**
-  1. In Card 2, enter Current Password: `wrongpassword999`.
-  2. Enter New Password: `newpassword123`.
-  3. Enter Confirm Password: `newpassword123`.
-  4. Tap **Change Password**.
-- [ ] **Verification:**
-  - **CRITICAL:** The app does **NOT** say *"Security Update: Account password successfully updated"*.
-  - Instead, it truthfully displays an error alert: *"Password Change Failed: Current password may be incorrect or session expired"*.
+### 🟢 Test 14: Prescriptions & Search Bar
 
-### Test 17.4: Custom Checklist Questions Management
-- [ ] **Action:**
-  1. Scroll to **Card 3: Consultation Checklist Questions**.
-  2. Notice existing questions loaded from `/api/doctor/custom-questions`.
-  3. In the input box at the bottom, type:
+1. Tap the menu icon $\rightarrow$ tap **Prescriptions**.
+2. **Test Search:**
+   - Tap the search bar at the top.
+   - Type `Lithium` (or the patient name).
+   - **What to check:** The list filters in real-time to show only prescriptions with that medicine.
+3. **Test Print Prescription:**
+   - Tap **"Print Official Rx Script"** on any prescription card.
+   - **What to check:** Opens a print preview with the official prescription header ($\mathtt{R_x}$ symbol, dosage table, doctor signature).
+
+---
+
+### 🟢 Test 15: Medical Reports & Hospital MIS Analytics
+
+1. Tap the menu icon $\rightarrow$ tap **Medical Reports**.
+2. You will see two tabs:
+   - **Patient Clinical Reports**
+   - **Hospital MIS Reports**
+
+3. **Patient Reports Tab:**
+   - Search your patient's name.
+   - Tap **"Discharge Summary"** $\rightarrow$ Generates official discharge summary PDF with real diagnosis and vitals.
+   - Tap **"Clinical EMR Dossier"** $\rightarrow$ Generates complete medical record PDF.
+
+4. **Hospital MIS Tab:**
+   - Tap the **Hospital MIS Reports** tab.
+   - You see 4 hospital reports:
+     - Daily Hospital Operations
+     - Doctor Performance
+     - Medication Monitoring
+     - Patient Statistics
+   - Tap **"Generate & Download Report"** on **Daily Hospital Operations**.
+   - **What to check:** The app fetches live hospital stats (today's OPD count, active admissions, appointments, total revenue) and opens a printable PDF table!
+
+---
+
+### 🟢 Test 16: Doctor Settings & Custom Questions
+
+1. Tap the menu icon $\rightarrow$ tap **Settings & Profile**.
+2. You will see 3 cards:
+   - **Card 1: Profile Information** (Full Name, Phone, Email, Specialization).
+   - **Card 2: Security Settings** (Change Password).
+   - **Card 3: Consultation Checklist Questions**.
+
+3. **Test Truthful Password Error Handling:**
+   - In Card 2, enter Current Password: `wrongpassword123`.
+   - Enter New Password: `newpassword123` (twice).
+   - Tap **Change Password**.
+   - **What to check:** The app does **NOT** say "Password updated successfully"! Instead, it truthfully tells you: *"Password Change Failed: Current password may be incorrect"*.
+
+4. **Test Custom Checklist Questions:**
+   - Scroll down to Card 3.
+   - In the text box at the bottom, type:
      ```text
-     Screen for history of bipolar mood swings or hypomania
+     Check for history of panic attacks or phobias
      ```
-  4. Tap the teal **`+`** (Plus) button.
-- [ ] **Verification:**
-  - The new question is immediately appended to the list with item number and trash can icon.
-- [ ] **Action:** Tap the trash can icon on an existing question.
-- [ ] **Verification:**
-  - The question is removed from the list.
-- [ ] **Action:** Tap **"Save Checklist Questions"**.
-- [ ] **Verification:**
-  - App sends `PUT /api/doctor/custom-questions` with updated questions array.
-  - Alert confirms: *"Custom consultation checklist questions updated successfully"*.
+   - Tap the teal **`+`** (Plus) button.
+   - **What to check:** The question is added to the list immediately.
+   - Now tap the red trash can icon next to any question $\rightarrow$ It gets removed.
+   - Tap **"Save Checklist Questions"** $\rightarrow$ A green alert confirms it is saved on the server!
 
 ---
 
-## Step 18: Patient Self-Service Portal Authentication
+### 🟢 Test 17: Patient Portal Authentication
 
-### Test 18.1: Log Out of Doctor Account
-- [ ] **Action:** Open drawer $\rightarrow$ Tap **Logout**.
-- [ ] **Verification:** Returned to the Role Selection screen.
-
-### Test 18.2: Open Patient Portal
-- [ ] **Action:** Tap the **Patient Portal** card.
-- [ ] **Verification:**
-  - Patient Authentication view opens.
-  - **CRITICAL:** Does **NOT** automatically log in as the first patient in the database (`data[0]`).
-  - Asks for Patient UHID or Registered Mobile Number.
-
-### Test 18.3: Patient Identity Verification
-- [ ] **Action:**
-  1. Enter the UHID or phone number of the patient registered in Step 3.
-  2. Tap **Access Patient Portal**.
-- [ ] **Verification:**
-  - Queries server for that specific patient identity.
-  - Opens Patient Self-Service Dashboard bound strictly to that patient's records.
+1. Tap menu icon $\rightarrow$ tap **Logout**.
+2. On the Role Selection screen, tap **Patient Portal**.
+3. **What to check:**
+   - The app does **NOT** automatically log in as a random person (the old `data[0]` bug is fixed).
+   - It asks for the Patient's UHID or Mobile Number.
+4. Type the patient's phone number or UHID $\rightarrow$ tap **Access Patient Portal** $\rightarrow$ Opens that specific patient's private self-service dashboard.
 
 ---
 
-## Step 19: Hardware Android Back Button & Logout
+### 🟢 Test 18: Android Hardware Back Button
 
-### Test 19.1: Multi-Layer Hardware Back Button Handling
-- [ ] **Action:**
-  1. Log into any account.
-  2. Navigate into a sub-screen (e.g., Prescriptions).
-  3. Press the Android device physical / gesture **Back Button**.
-- [ ] **Verification:**
-  - Screen smoothly navigates back to the Dashboard.
-  - The app does **NOT** terminate or crash.
-- [ ] **Action:**
-  4. Open the navigation drawer.
-  5. Press the physical **Back Button**.
-- [ ] **Verification:**
-  - The drawer closes cleanly while staying on the current screen.
-- [ ] **Action:**
-  6. On the main Dashboard, press the physical **Back Button**.
-- [ ] **Verification:**
-  - Cleanly returns to the Role Selection screen.
+1. While inside any sub-screen (like Prescriptions or Medical Reports), press your Android phone's **Physical / Gesture Back Button**.
+   - **What to check:** It takes you back to the Dashboard. The app does **NOT** close or crash.
+2. Open the side menu (drawer), then press the **Back Button**.
+   - **What to check:** The side menu closes smoothly while staying on the same screen.
+3. On the main Dashboard, press the **Back Button**.
+   - **What to check:** It cleanly takes you back to the Role Selection screen.
 
 ---
 
-## 🎯 Verification Sign-Off Table
+## 🏁 Summary Checklist: Did Everything Pass?
 
-| Section | Feature Area | Status (PASS / FAIL) | Notes / Observations |
-| :---: | :--- | :---: | :--- |
-| **01** | Role Selection & Startup State | `PASS` | No dark card on startup |
-| **02** | Role-Guard Cross-Role Security | `PASS` | Server rejects unauthorized workspaces |
-| **03** | Receptionist Dashboard Zero-Counts | `PASS` | No mock 42/128 counters |
-| **04** | Continuous Patient Registration | `PASS` | End-to-end appointment, token & receipt |
-| **05** | Directory Pagination & Bulk Import | `PASS` | Server skip/limit works cleanly |
-| **06** | Appointment Reason Cancellation | `PASS` | Reason captured in PUT payload |
-| **07** | Queue Tokens Call In / Complete | `PASS` | Real-time status update |
-| **08** | Inpatient Admission Schema & Room | `PASS` | Room status switches to Occupied |
-| **09** | Reception Billing & Staff Attribution | `PASS` | `created_by` captured on payment |
-| **10** | Doctor Workstation OPD/IPD Toggle | `PASS` | Switch between OPD and Ward Rounds |
-| **11** | EMR Admission Context Resolution | `PASS` | `admission_id` resolved on EMR entry |
-| **12** | Ward Round Board Widgets (Mode A) | `PASS` | Quick rounding modals functional |
-| **13** | 12 Tabs Comprehensive EMR (Mode B) | `PASS` | All clinical tabs save to live server |
-| **14** | 24h SOAP Notes Sign & Lock | `PASS` | Note locks with timestamp and badge |
-| **15** | Order Lab Investigation from EMR | `PASS` | Tests ordered with clinical indication |
-| **16** | Clinical PDF Dossier Generation | `PASS` | Multi-page branded medical dossier |
-| **17** | Lab Orders (No Mock Records) | `PASS` | 10 fake orders completely removed |
-| **18** | Lab Report Modal Real Findings | `PASS` | 5 fake test rows replaced with live report |
-| **19** | Prescriptions Live Search & PDF Rx | `PASS` | Searches UHID/drugs & prints Rx script |
-| **20** | Medical Reports (Patient + MIS) | `PASS` | Live clinical dossier & hospital MIS tables |
-| **21** | Doctor Settings & Custom Questions | `PASS` | Add, delete & persist custom checklist |
-| **22** | Patient Portal Authentication | `PASS` | Real UHID lookup, no data[0] bypass |
-| **23** | Android Back Button Navigation | `PASS` | Closes drawer, sub-screens, role exit |
+Check each box as you test:
+
+- [ ] **1. Role Cards:** All start clean and white (none preselected dark).
+- [ ] **2. Role Guard:** Wrong role credentials are blocked with an Access Denied message.
+- [ ] **3. Receptionist Counts:** Real numbers from server (no fake 42 or 128).
+- [ ] **4. Patient Registration:** Gives real server UHID and opens token receipt.
+- [ ] **5. Queue Tokens:** Can filter by doctor and tap "Call In" / "Complete".
+- [ ] **6. Inpatient Admissions:** Real room allocation and discharge.
+- [ ] **7. Doctor Workstation:** OPD vs. Ward Rounds toggle works.
+- [ ] **8. EMR Admission Context:** Opens with active green `ADM-...` badge.
+- [ ] **9. Ward Round Board:** Quick modals (+Add Note, +Record Vitals) work.
+- [ ] **10. 12-Tab EMR:** Symptoms, MSE, ICD-11 Diagnosis, Risk, Medications with Stop button, and 24h Sign & Lock all save to server.
+- [ ] **11. Order Lab from EMR:** Tests submit to backend.
+- [ ] **12. Lab Orders Screen:** All 10 fake orders are gone; only real orders show.
+- [ ] **13. Lab Report Viewer:** Real test values and reference intervals show.
+- [ ] **14. Prescriptions:** Search bar works and prints signed prescription script.
+- [ ] **15. Hospital MIS Reports:** Daily Hospital and Medication analytics download real tables.
+- [ ] **16. Settings:** Custom checklist questions can be added, deleted, and saved.
+- [ ] **17. Back Button:** Navigates smoothly without crashing.
+
+**Congratulations! Your Swastik Hospital Android App is fully verified and connected end-to-end to the live server!**
